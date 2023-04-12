@@ -14,10 +14,17 @@
 /* Comment this out to disable prints and save space */
 #define BLYNK_PRINT Serial
 
+#if defined(ESP8266)
+#include <BlynkSimpleEsp8266.h>
+#include <ESP8266WiFi.h>
+#include <WiFiClient.h>
+#include <Servo.h>
+#elif defined(ESP32)
 #include <BlynkSimpleEsp32.h>
-#include <ESP32Servo.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
+#include <ESP32Servo.h>
+#endif
 
 // Your WiFi credentials.
 // Set password to "" for open networks.
@@ -50,11 +57,24 @@ void setup() {
   // Debug console
   Serial.begin(115200);
 
-  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
   // You can also specify server:
   // Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass, "blynk.cloud", 80);
   // Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass, IPAddress(192,168,1,100), 8080);
-
+  
+  #if defined(ESP32)
+    Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+    // You can also specify server:
+    // Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass, "blynk.cloud", 80);
+    // Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass, IPAddress(192,168,1,100), 8080);
+  #elif defined(ESP8266)
+    WiFi.begin(ssid, pass);
+    while (WiFi.status() != WL_CONNECTED) {
+      delay(500);
+      Serial.print(".");
+    }
+    Blynk.config(BLYNK_AUTH_TOKEN);
+  #endif
+  
   servo.attach(4);
 
   pinMode(doorPin, INPUT_PULLUP);
