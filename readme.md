@@ -5,12 +5,12 @@ This is a simple door monitoring system using an ESP32 and Blynk app.
 ## Requirements
 
 - Arduino IDE
-- ESP32 board support for Arduino IDE
+- ESP32 or ESP8266 board support for Arduino IDE
 - Blynk app installed on your smartphone
 
 ## Hardware
 
-- ESP32 board
+- ESP32/ESP8266 board
 - Magnetic door switch
 - Servo motor
 - LEDs
