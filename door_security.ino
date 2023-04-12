@@ -1,10 +1,3 @@
-/*************************************************************
-
-  Rotate a servo using a slider and control an LED!
-
-  App dashboard setup:
-    Slider widget (0...180) on V3
- *************************************************************/
 
 /* Fill-in information from Blynk Device Info here */
 #define BLYNK_TEMPLATE_ID "YOUR_TEMPLATE_ID"
@@ -15,15 +8,15 @@
 #define BLYNK_PRINT Serial
 
 #if defined(ESP8266)
-#include <BlynkSimpleEsp8266.h>
-#include <ESP8266WiFi.h>
-#include <WiFiClient.h>
-#include <Servo.h>
+  #include <BlynkSimpleEsp8266.h>
+  #include <ESP8266WiFi.h>
+  #include <WiFiClient.h>
+  #include <Servo.h>
 #elif defined(ESP32)
-#include <BlynkSimpleEsp32.h>
-#include <WiFi.h>
-#include <WiFiClient.h>
-#include <ESP32Servo.h>
+  #include <BlynkSimpleEsp32.h>
+  #include <WiFi.h>
+  #include <WiFiClient.h>
+  #include <ESP32Servo.h>
 #endif
 
 // Your WiFi credentials.
@@ -31,13 +24,15 @@
 char ssid[] = "YOUR_WIFI_SSID";
 char pass[] = "YOUR_WIFI_PASSWORD";
 
+
 Servo servo;
 
 int doorPin = 32; // Pin connected to the magnetic door switch
 
-int sleep_led = 22;   // Pin connected to the LED
-int warning_led = 21; // Pin connected to the LED
-int monitoring_ = 33; // Pin connected to the LED
+int sleep_led = 22;   // -> 23
+int warning_led = 21; // -> 18
+int monitoring_ = 33; // -> 5
+#define SERVO_PIN 4   // -> 19
 
 bool monitoring_status = false;
 BLYNK_WRITE(V3) { servo.write(param.asInt()); }
@@ -66,6 +61,7 @@ void setup() {
     // You can also specify server:
     // Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass, "blynk.cloud", 80);
     // Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass, IPAddress(192,168,1,100), 8080);
+  pinMode(monitoring_, OUTPUT); // if you are using esp32 it will work else I'm not using it to save resources. 
   #elif defined(ESP8266)
     WiFi.begin(ssid, pass);
     while (WiFi.status() != WL_CONNECTED) {
@@ -75,12 +71,11 @@ void setup() {
     Blynk.config(BLYNK_AUTH_TOKEN);
   #endif
   
-  servo.attach(4);
+  servo.attach(SERVO_PIN);
 
   pinMode(doorPin, INPUT_PULLUP);
   pinMode(sleep_led, OUTPUT);
   pinMode(warning_led, OUTPUT);
-  pinMode(monitoring_, OUTPUT);
 }
 
 void loop() {
