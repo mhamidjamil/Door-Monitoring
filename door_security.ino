@@ -7,9 +7,9 @@
  *************************************************************/
 
 /* Fill-in information from Blynk Device Info here */
-#define BLYNK_TEMPLATE_ID "TMPL6JjS0X4Ey"
-#define BLYNK_TEMPLATE_NAME "Quickstart Template"
-#define BLYNK_AUTH_TOKEN "V0GUIMD1pXGciOfg6LUB7Xd6rhS4iRPp"
+#define BLYNK_TEMPLATE_ID "YOUR_TEMPLATE_ID"
+#define BLYNK_TEMPLATE_NAME "YOUR_TEMPELATE_NAME"
+#define BLYNK_AUTH_TOKEN "YOUR_AUTH_TOKEN"
 
 /* Comment this out to disable prints and save space */
 #define BLYNK_PRINT Serial
@@ -21,8 +21,8 @@
 
 // Your WiFi credentials.
 // Set password to "" for open networks.
-char ssid[] = "Archer 73";
-char pass[] = "Archer@73_102#";
+char ssid[] = "YOUR_WIFI_SSID";
+char pass[] = "YOUR_WIFI_PASSWORD";
 
 Servo servo;
 
