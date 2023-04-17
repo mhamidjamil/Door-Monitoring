@@ -199,12 +199,12 @@ void button_event() {
     if (current_angle == DOOR_CLOSE) {
       servo.write(DOOR_OPEN);
       current_angle = DOOR_OPEN;
-      Serial.println("Door open with button");
+      // Serial.println("Door open with button");
       Blink(GREEN_LED, 500, 2);
     } else {
       servo.write(DOOR_CLOSE);
       current_angle = DOOR_CLOSE;
-      Serial.println("Door close with button");
+      // Serial.println("Door close with button");
       Blink(RED_LED, 500, 2);
     }
   }
