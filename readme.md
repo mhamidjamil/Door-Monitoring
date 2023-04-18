@@ -27,6 +27,8 @@ This is a simple door monitoring system using an ESP32 and Blynk app.
 5. Modify the following lines with your Wi-Fi and Blynk credentials in config.h file (and don't forget to create it too in same folder as `config.h`). :
 
 your config file will be look like this:
+
+```
 #ifndef CONFIG_H
 #define CONFIG_H
 
@@ -36,6 +38,7 @@ your config file will be look like this:
 #define MY_SSID "INSERT_WIFI_SSID_HERE"
 #define MY_PASSWORD "INSERT_WIFI_PASSWORD_HERE"
 #endif // CONFIG_H
+```
 
 6. Connect the hardware as shown in the diagram below.
 7. Upload the code to your ESP32 board.
