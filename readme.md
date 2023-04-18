@@ -24,11 +24,18 @@ This is a simple door monitoring system using an ESP32 and Blynk app.
 2. Install the Blynk library for Arduino IDE. In the Arduino IDE, go to Sketch > Include Library > Manage Libraries, then search for "Blynk" and install it.
 3. Download or clone this repository to your computer.
 4. Open the `esp32-door-monitoring-system.ino` file in Arduino IDE.
-5. Modify the following lines with your Wi-Fi and Blynk credentials:
+5. Modify the following lines with your Wi-Fi and Blynk credentials in config.h file (and don't forget to create it too in same folder as `config.h`). :
 
-char ssid[] = "your_wifi_ssid";
-char pass[] = "your_wifi_password";
-#define BLYNK_AUTH_TOKEN "your_blynk_auth_token"
+your config file will be look like this:
+#ifndef CONFIG_H
+#define CONFIG_H
+
+#define MY_ID "INSERT_TEMPLATE_ID_HERE"
+#define MY_TEMPLATE_NAME "INSERT_TEMPLATE_NAME_HERE"
+#define MY_AUTH_TOKEN "INSERT_AUTH_TOKEN_HERE"
+#define MY_SSID "INSERT_WIFI_SSID_HERE"
+#define MY_PASSWORD "INSERT_WIFI_PASSWORD_HERE"
+#endif // CONFIG_H
 
 6. Connect the hardware as shown in the diagram below.
 7. Upload the code to your ESP32 board.

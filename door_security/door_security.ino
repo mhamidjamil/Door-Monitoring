@@ -1,7 +1,12 @@
 #include "config.h"
+
 #define BLYNK_TEMPLATE_ID MY_ID
 #define BLYNK_TEMPLATE_NAME MY_TEMPLATE_NAME
 #define BLYNK_AUTH_TOKEN MY_AUTH_TOKEN
+
+char ssid[] = MY_SSID;
+char pass[] = MY_PASSWORD;
+
 
 #define BLYNK_PRINT Serial
 
@@ -19,8 +24,6 @@
 
 #endif
 
-char ssid[] = MY_SSID;
-char pass[] = MY_PASSWORD;
 
 Servo servo;
 
