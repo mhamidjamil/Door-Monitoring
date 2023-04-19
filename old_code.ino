@@ -1,10 +1,12 @@
+#include "config.h"
 
-/* Fill-in information from Blynk Device Info here */
-#define BLYNK_TEMPLATE_ID "TMPL6JjS0X4Ey"
-#define BLYNK_TEMPLATE_NAME "Quickstart Template"
-#define BLYNK_AUTH_TOKEN "V0GUIMD1pXGciOfg6LUB7Xd6rhS4iRPp"
+#define BLYNK_TEMPLATE_ID MY_ID
+#define BLYNK_TEMPLATE_NAME MY_TEMPLATE_NAME
+#define BLYNK_AUTH_TOKEN MY_AUTH_TOKEN
 
-/* Comment this out to disable prints and save space */
+char ssid[] = MY_SSID;
+char pass[] = MY_PASSWORD;
+
 #define BLYNK_PRINT Serial
 
 #if defined(ESP8266)
@@ -20,11 +22,6 @@
 #include <WiFiClient.h>
 
 #endif
-
-// Your WiFi credentials.
-// Set password to "" for open networks.
-char ssid[] = "eduroam";
-char pass[] = "Room@102+$";
 
 Servo servo;
 
@@ -46,7 +43,6 @@ bool monitoring_status = false;
 BLYNK_WRITE(V3) {
   current_angle = param.asInt();
   servo.write(current_angle);
-  // Serial.print("Current angle: " + String(current_angle));
 }
 
 BLYNK_WRITE(V7) {
@@ -199,12 +195,10 @@ void button_event() {
     if (current_angle == DOOR_CLOSE) {
       servo.write(DOOR_OPEN);
       current_angle = DOOR_OPEN;
-      // Serial.println("Door open with button");
       Blink(GREEN_LED, 500, 2);
     } else {
       servo.write(DOOR_CLOSE);
       current_angle = DOOR_CLOSE;
-      // Serial.println("Door close with button");
       Blink(RED_LED, 500, 2);
     }
   }
