@@ -1,3 +1,4 @@
+// Battery will charge when ac input is present
 #include "config.h"
 
 #define BLYNK_TEMPLATE_ID MY_ID
@@ -25,17 +26,26 @@ char pass[] = MY_PASSWORD;
 
 Servo servo;
 
-#define BUTTON_PIN 12
-#define GREEN_LED 4
 #define RED_LED 5
+#define GREEN_LED 4
 #define BLUE_LED 0
 #define SERVO_PIN 2
 
 #define DOOR_PIN 14
+#define BUTTON_PIN 12
+
 #define DOOR_CLOSE 180
 #define DOOR_OPEN 0
+
 bool door_status = false;
+
 unsigned long savedTimes[3] = {0, 0, 0};
+
+#define CHARGING_RELAY 9 // output
+#define AC_INPUT 10      // input
+unsigned int previous_time = 0;
+unsigned long accumulatedTime = 0;
+bool outputPinState = false;
 
 int current_angle = 0;
 
@@ -82,6 +92,8 @@ void setup() {
   pinMode(RED_LED, OUTPUT);
   pinMode(BLUE_LED, OUTPUT);
   pinMode(BUTTON_PIN, INPUT);
+  pinMode(CHARGING_RELAY, OUTPUT);
+  pinMode(AC_INPUT, INPUT);
 }
 
 void loop() {
@@ -131,6 +143,7 @@ void loop() {
     }
   }
   force_door_off();
+  battery_manager();
 }
 void DELAY(int delay_time) {
   for (int i = 0; i < delay_time; i += 10) {
@@ -228,5 +241,33 @@ void serialManager(String command) {
     Serial.println("Monitoring status: " + String(monitoring_status));
   } else {
     Serial.println("Command not found");
+  }
+}
+
+void battery_manager() {
+  delay(1000);
+  if (digitalRead(AC_INPUT) == LOW) {
+    accumulatedTime_manager(1);
+    if (outputPinState) {
+      digitalWrite(CHARGING_RELAY, LOW);
+      outputPinState = false;
+    }
+  } else if (digitalRead(AC_INPUT) == HIGH) {
+    if (accumulatedTime > 0) {
+      digitalWrite(CHARGING_RELAY, HIGH);
+      outputPinState = true;
+      accumulatedTime_manager(-1);
+    } else {
+      digitalWrite(CHARGING_RELAY, LOW);
+      outputPinState = false;
+      previous_time = (millis() / 1000);
+    }
+  }
+}
+void accumulatedTime_manager(int change) {
+  if (previous_time != (millis() / 1000)) {
+    accumulatedTime =
+        accumulatedTime + change * ((millis() / 1000) - previous_time);
+    previous_time = millis() / 1000;
   }
 }

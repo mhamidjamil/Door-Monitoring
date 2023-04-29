@@ -86,17 +86,20 @@ void setup() {
 
 void loop() {
   Blynk.run();
-
+  if (Serial.available() > 0) {
+    String command = Serial.readStringUntil('\n');
+    serialManager(command);
+  }
   if (Blynk.connected()) {
     // Check monitoring mode status
     if (monitoring_status) {
+      digitalWrite(GREEN_LED, LOW);
       digitalWrite(BLUE_LED, HIGH);
       if (door_close()) {
         if (!door_status) {
           take_door_timeSnap();
           door_status = true;
         }
-        digitalWrite(GREEN_LED, LOW);
         digitalWrite(RED_LED, LOW);
         Blynk.virtualWrite(V4, 1);
         Blynk.virtualWrite(V5, 1);
@@ -201,5 +204,29 @@ void button_event() {
       current_angle = DOOR_CLOSE;
       Blink(RED_LED, 500, 2);
     }
+  }
+}
+void serialManager(String command) {
+  if (command == "open") {
+    servo.write(DOOR_OPEN);
+    current_angle = DOOR_OPEN;
+    Serial.println("Door is open");
+  } else if (command == "close") {
+    servo.write(DOOR_CLOSE);
+    current_angle = DOOR_CLOSE;
+    Serial.println("Door is close");
+  } else if (command == "monitor") {
+    monitoring_status = true;
+    digitalWrite(BLUE_LED, HIGH);
+    Serial.println("Monitoring mode is on");
+  } else if (command == "stop") {
+    monitoring_status = false;
+    digitalWrite(BLUE_LED, LOW);
+    Serial.println("Monitoring mode is off");
+  } else if (command == "status") {
+    Serial.println("Door status: " + String(door_close()));
+    Serial.println("Monitoring status: " + String(monitoring_status));
+  } else {
+    Serial.println("Command not found");
   }
 }
