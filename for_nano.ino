@@ -10,7 +10,7 @@ Servo servo;
 
 #define DOOR_PIN 3
 #define BUTTON_PIN 2
-// #define AC_INPUT 10       // input
+#define AC_INPUT 12      // input
 #define CHARGING_RELAY 5 // output
 #define SWITCHER 4       // output -> switch between battery and adapter
 
@@ -61,7 +61,7 @@ void setup() {
   pinMode(BLUE_LED, OUTPUT);
   pinMode(BUTTON_PIN, INPUT);
   pinMode(CHARGING_RELAY, OUTPUT);
-  // pinMode(AC_INPUT, INPUT);
+  pinMode(AC_INPUT, INPUT);
   pinMode(SWITCHER, OUTPUT);
   Serial.println("leaving void setup");
   digitalWrite(LED_BUILTIN, HIGH);
@@ -192,18 +192,18 @@ void serialManager(String command) {
   }
 }
 void battery_manager() {
-  Serial.println("AC_INPUT: " + String(AC_INPUT()) +
+  Serial.println("AC_INPUT: " + String(digitalRead(AC_INPUT)) +
                  " accumulatedTime: " + String(accumulatedTime) +
                  +" previous_time: " + String(previous_time));
   // delay(1000);
-  if (AC_INPUT() < 30) {
+  if (digitalRead(AC_INPUT) == LOW) {
     digitalWrite(SWITCHER, HIGH);
     accumulatedTime_manager(1);
     if (outputPinState) {
       digitalWrite(CHARGING_RELAY, HIGH);
       outputPinState = false;
     }
-  } else {
+  } else if (digitalRead(AC_INPUT) == HIGH) {
     digitalWrite(SWITCHER, LOW);
     if (accumulatedTime > 0) {
       digitalWrite(CHARGING_RELAY, LOW);
@@ -217,13 +217,12 @@ void battery_manager() {
   }
 }
 void accumulatedTime_manager(int change) {
-  if (previous_time != (millis() / 1000)) {
-    accumulatedTime =
-        accumulatedTime + change * ((millis() / 1000) - previous_time);
-    previous_time = millis() / 1000;
+  int temp_accumulatedTime =
+      accumulatedTime + change * ((millis() / 1000) - previous_time);
+  previous_time = millis() / 1000;
+  if (temp_accumulatedTime < 0) {
+    accumulatedTime = 0;
+  } else {
+    accumulatedTime = temp_accumulatedTime;
   }
-}
-int AC_INPUT() {
-  int value = analogRead(7);
-  return value;
 }
