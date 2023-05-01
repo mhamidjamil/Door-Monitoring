@@ -1,110 +1,100 @@
-//! stable code
-#include "config.h"
 
-#define BLYNK_TEMPLATE_ID MY_ID
-#define BLYNK_TEMPLATE_NAME MY_TEMPLATE_NAME
-#define BLYNK_AUTH_TOKEN MY_AUTH_TOKEN
-
-char ssid[] = MY_SSID;
-char pass[] = MY_PASSWORD;
-//% @mhamidjamil Not for test_code #FILE (copy code from here)
-//~-------------------------------------------------------
-
-#define BLYNK_PRINT Serial
-
-#if defined(ESP8266)
-#include <BlynkSimpleEsp8266.h>
-#include <ESP8266WiFi.h>
 #include <Servo.h>
-#include <WiFiClient.h>
-
-#elif defined(ESP32)
-#include <BlynkSimpleEsp32.h>
-#include <ESP32Servo.h>
-#include <WiFi.h>
-#include <WiFiClient.h>
-
-#endif
 
 Servo servo;
 
-#define BUTTON_PIN 12
-#define GREEN_LED 4
-#define RED_LED 5
-#define BLUE_LED 0
-#define SERVO_PIN 2
+#define RED_LED 9
+#define GREEN_LED 8
+#define BLUE_LED 7
+#define SERVO_PIN 6
 
-#define DOOR_PIN 14
+#define DOOR_PIN 3
+#define BUTTON_PIN 2
+// #define AC_INPUT 10       // input
+#define CHARGING_RELAY 5 // output
+#define SWITCHER 4       // output -> switch between battery and adapter
+
 #define DOOR_CLOSE 180
 #define DOOR_OPEN 0
 bool door_status = false;
+
 int current_angle = 0;
 
 bool monitoring_status = false;
-BLYNK_WRITE(V3) {
-  current_angle = param.asInt();
-  servo.write(current_angle);
-}
 
-BLYNK_WRITE(V7) {
-  int monitor = param.asInt();
-  if (monitor == 1) {
-    monitoring_status = true;
-    digitalWrite(BLUE_LED, HIGH);
-  } else {
-    monitoring_status = false;
-    digitalWrite(BLUE_LED, LOW);
-  }
-}
+// #-----------------
+// Battery function
+
+unsigned int previous_time = 0;
+unsigned long accumulatedTime = 0;
+bool outputPinState = false;
+// #-----------------
+// BLYNK_WRITE(V3) {
+//   current_angle = param.asInt();
+//   servo.write(current_angle);
+// }
+
+// BLYNK_WRITE(V7) {
+//   int monitor = param.asInt();
+//   if (monitor == 1) {
+//     monitoring_status = true;
+//     digitalWrite(BLUE_LED, HIGH);
+//   } else {
+//     monitoring_status = false;
+//     digitalWrite(BLUE_LED, LOW);
+//   }
+// }
 void DELAY(int delay_time);
 void setup() {
+  // Debug console
   Serial.begin(9600);
-
-#if defined(ESP32)
-  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
-#elif defined(ESP8266)
-  WiFi.begin(ssid, pass);
-  while (WiFi.status() != WL_CONNECTED) {
-    DELAY(500);
-    Serial.print(".");
-  }
-  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass, "blynk.cloud", 80);
-
-#endif
+  pinMode(LED_BUILTIN, OUTPUT);
+  // Serial.println("void setup enter point 1");
+  // delay(500);
+  // Blynk.begin(auth, ssid, pass);
+  // Serial.println("void setup After blynk");
 
   servo.attach(SERVO_PIN);
-
   pinMode(DOOR_PIN, INPUT_PULLUP);
   pinMode(GREEN_LED, OUTPUT);
   pinMode(RED_LED, OUTPUT);
   pinMode(BLUE_LED, OUTPUT);
   pinMode(BUTTON_PIN, INPUT);
+  pinMode(CHARGING_RELAY, OUTPUT);
+  // pinMode(AC_INPUT, INPUT);
+  pinMode(SWITCHER, OUTPUT);
+  Serial.println("leaving void setup");
+  digitalWrite(LED_BUILTIN, HIGH);
 }
 
 void loop() {
-  Blynk.run();
+  // Blynk.run();
+  // Serial.println("I'm alive :) " + String(millis() / 1000));
+  // delay(1000);
   if (Serial.available() > 0) {
     String command = Serial.readStringUntil('\n');
     serialManager(command);
   }
-  if (Blynk.connected()) {
+  // if (Blynk.connected() || true) {
+  if (true) {
+    // Check monitoring mode status
     if (monitoring_status) {
-      digitalWrite(GREEN_LED, LOW);
       digitalWrite(BLUE_LED, HIGH);
       if (door_close()) {
         if (!door_status) {
           door_status = true;
         }
+        digitalWrite(GREEN_LED, LOW);
         digitalWrite(RED_LED, LOW);
-        Blynk.virtualWrite(V4, 1);
-        Blynk.virtualWrite(V5, 1);
+        // Blynk.virtualWrite(V4, 1);
+        // Blynk.virtualWrite(V5, 1);
       } else {
         if (door_status) {
           door_status = false;
         }
         digitalWrite(RED_LED, HIGH);
-        Blynk.virtualWrite(V4, 0);
-        Blynk.virtualWrite(V5, 0);
+        // Blynk.virtualWrite(V4, 0);
+        // Blynk.virtualWrite(V5, 0);
       }
     } else {
       digitalWrite(RED_LED, LOW);
@@ -119,10 +109,11 @@ void loop() {
         }
         digitalWrite(GREEN_LED, HIGH);
       }
-      Blynk.virtualWrite(V5, !digitalRead(DOOR_PIN));
+      // Blynk.virtualWrite(V5, !digitalRead(DOOR_PIN));
     }
   }
   force_door_off();
+  battery_manager();
 }
 void DELAY(int delay_time) {
   for (int i = 0; i < delay_time; i += 10) {
@@ -177,26 +168,62 @@ void button_event() {
   }
 }
 void serialManager(String command) {
-  if (command == "open") {
+  if (command.indexOf("#open") != -1) {
     servo.write(DOOR_OPEN);
     current_angle = DOOR_OPEN;
     Serial.println("Door is open");
-  } else if (command == "close") {
+  } else if (command.indexOf("#close") != -1) {
     servo.write(DOOR_CLOSE);
     current_angle = DOOR_CLOSE;
     Serial.println("Door is close");
-  } else if (command == "monitor") {
+  } else if (command.indexOf("#monitoring") != -1) {
     monitoring_status = true;
     digitalWrite(BLUE_LED, HIGH);
     Serial.println("Monitoring mode is on");
-  } else if (command == "stop") {
+  } else if (command.indexOf("#stop") != -1) {
     monitoring_status = false;
     digitalWrite(BLUE_LED, LOW);
     Serial.println("Monitoring mode is off");
-  } else if (command == "status") {
+  } else if (command.indexOf("#status") != -1) {
     Serial.println("Door status: " + String(door_close()));
     Serial.println("Monitoring status: " + String(monitoring_status));
   } else {
     Serial.println("Command not found");
   }
+}
+void battery_manager() {
+  Serial.println("AC_INPUT: " + String(AC_INPUT()) +
+                 " accumulatedTime: " + String(accumulatedTime) +
+                 +" previous_time: " + String(previous_time));
+  // delay(1000);
+  if (AC_INPUT() < 30) {
+    digitalWrite(SWITCHER, HIGH);
+    accumulatedTime_manager(1);
+    if (outputPinState) {
+      digitalWrite(CHARGING_RELAY, HIGH);
+      outputPinState = false;
+    }
+  } else {
+    digitalWrite(SWITCHER, LOW);
+    if (accumulatedTime > 0) {
+      digitalWrite(CHARGING_RELAY, LOW);
+      outputPinState = true;
+      accumulatedTime_manager(-1);
+    } else {
+      digitalWrite(CHARGING_RELAY, HIGH);
+      outputPinState = false;
+      previous_time = (millis() / 1000);
+    }
+  }
+}
+void accumulatedTime_manager(int change) {
+  if (previous_time != (millis() / 1000)) {
+    accumulatedTime =
+        accumulatedTime + change * ((millis() / 1000) - previous_time);
+    previous_time = millis() / 1000;
+  }
+}
+int AC_INPUT() {
+  int value = analogRead(7);
+  return value;
 }
