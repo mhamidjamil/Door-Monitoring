@@ -3,6 +3,8 @@
 
 Servo servo;
 
+#define AC_INPUT 12      // input
+#define RELAY_MANAGER_PIN 11 // transister on this pin
 #define RED_LED 9
 #define GREEN_LED 8
 #define BLUE_LED 7
@@ -10,7 +12,6 @@ Servo servo;
 
 #define DOOR_PIN 3
 #define BUTTON_PIN 2
-#define AC_INPUT 12      // input
 #define CHARGING_RELAY 5 // output
 #define SWITCHER 4       // output -> switch between battery and adapter
 
@@ -63,8 +64,10 @@ void setup() {
   pinMode(CHARGING_RELAY, OUTPUT);
   pinMode(AC_INPUT, INPUT);
   pinMode(SWITCHER, OUTPUT);
+  pinMode(RELAY_MANAGER_PIN, OUTPUT);
   Serial.println("leaving void setup");
   digitalWrite(LED_BUILTIN, HIGH);
+
 }
 
 void loop() {
@@ -204,7 +207,13 @@ void battery_manager() {
       outputPinState = false;
     }
   } else if (digitalRead(AC_INPUT) == HIGH) {
+// add transister at pin 11 to solve issue
+digitalWrite(RELAY_MANAGER_PIN, HIGH);
+delay(300);
     digitalWrite(SWITCHER, LOW);
+digitalWrite(RELAY_MANAGER_PIN, LOW);
+// # Upper code will fix the @relay_struggling_issue 
+
     if (accumulatedTime > 0) {
       digitalWrite(CHARGING_RELAY, LOW);
       outputPinState = true;
