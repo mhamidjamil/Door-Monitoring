@@ -1,10 +1,10 @@
-
+// #8 Relays are still struggling
 #include <Servo.h>
 
 Servo servo;
 
-#define AC_INPUT 12      // input
-#define RELAY_MANAGER_PIN 11 // transister on this pin
+#define AC_INPUT 12          // input
+#define RELAY_MANAGER_PIN 11 // transistor on this pin
 #define RED_LED 9
 #define GREEN_LED 8
 #define BLUE_LED 7
@@ -67,7 +67,6 @@ void setup() {
   pinMode(RELAY_MANAGER_PIN, OUTPUT);
   Serial.println("leaving void setup");
   digitalWrite(LED_BUILTIN, HIGH);
-
 }
 
 void loop() {
@@ -207,12 +206,12 @@ void battery_manager() {
       outputPinState = false;
     }
   } else if (digitalRead(AC_INPUT) == HIGH) {
-// add transister at pin 11 to solve issue
-digitalWrite(RELAY_MANAGER_PIN, HIGH);
-delay(300);
+    // add transister at pin 11 to solve issue
+    digitalWrite(RELAY_MANAGER_PIN, HIGH);
+    delay(300);
     digitalWrite(SWITCHER, LOW);
-digitalWrite(RELAY_MANAGER_PIN, LOW);
-// # Upper code will fix the @relay_struggling_issue 
+    digitalWrite(RELAY_MANAGER_PIN, LOW);
+    // # Upper code will fix the @relay_struggling_issue
 
     if (accumulatedTime > 0) {
       digitalWrite(CHARGING_RELAY, LOW);
