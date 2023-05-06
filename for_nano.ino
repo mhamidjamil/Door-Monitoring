@@ -1,4 +1,5 @@
 // #8 Relays are still struggling
+// working on custom Relay board
 #include <Servo.h>
 
 Servo servo;
@@ -208,9 +209,12 @@ void battery_manager() {
   } else if (digitalRead(AC_INPUT) == HIGH) {
     // add transister at pin 11 to solve issue
     digitalWrite(RELAY_MANAGER_PIN, HIGH);
-    delay(300);
+    Serial.println("Relay manager pin is HIGH");
+    delay(1000);
     digitalWrite(SWITCHER, LOW);
+    delay(2000);
     digitalWrite(RELAY_MANAGER_PIN, LOW);
+    Serial.println("Relay manager pin is LOW");
     // # Upper code will fix the @relay_struggling_issue
 
     if (accumulatedTime > 0) {
