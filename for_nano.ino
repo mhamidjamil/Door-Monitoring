@@ -6,6 +6,7 @@ Servo servo;
 
 #define AC_INPUT 12          // input
 #define RELAY_MANAGER_PIN 11 // transistor on this pin
+#define SERVO_BACKUP_PIN 10  // output
 #define RED_LED 9
 #define GREEN_LED 8
 #define BLUE_LED 7
@@ -19,6 +20,7 @@ Servo servo;
 #define DOOR_CLOSE 180
 #define DOOR_OPEN 0
 bool door_status = false;
+bool DEBUGGING = true;
 
 int current_angle = 0;
 
@@ -29,8 +31,10 @@ bool monitoring_status = false;
 
 unsigned int previous_time = 0;
 unsigned long accumulatedTime = 0;
-bool outputPinState = false;
+bool outputPinState = true;
 // #-----------------
+
+String command = "";
 // BLYNK_WRITE(V3) {
 //   current_angle = param.asInt();
 //   servo.write(current_angle);
@@ -64,16 +68,16 @@ void setup() {
   pinMode(BUTTON_PIN, INPUT);
   pinMode(CHARGING_RELAY, OUTPUT);
   pinMode(AC_INPUT, INPUT);
-  pinMode(SWITCHER, OUTPUT);
   pinMode(RELAY_MANAGER_PIN, OUTPUT);
-  Serial.println("leaving void setup");
+  pinMode(SERVO_BACKUP_PIN, OUTPUT);
+  println("leaving void setup");
   digitalWrite(LED_BUILTIN, HIGH);
 }
 
 void loop() {
   // Blynk.run();
-  // Serial.println("I'm alive :) " + String(millis() / 1000));
-  // delay(1000);
+  println("I'm alive :) " + String(millis() / 1000));
+  DELAY(1000);
   if (Serial.available() > 0) {
     String command = Serial.readStringUntil('\n');
     serialManager(command);
@@ -115,8 +119,11 @@ void loop() {
       // Blynk.virtualWrite(V5, !digitalRead(DOOR_PIN));
     }
   }
-  force_door_off();
+  print("After true,\t");
   battery_manager();
+  println("After battery manager");
+  force_door_off();
+  print("After force off\t");
 }
 void DELAY(int delay_time) {
   for (int i = 0; i < delay_time; i += 10) {
@@ -126,9 +133,9 @@ void DELAY(int delay_time) {
 }
 void Blink(int led_number, int delay_time) {
   digitalWrite(led_number, HIGH);
-  DELAY(delay_time / 2);
+  delay(delay_time / 2);
   digitalWrite(led_number, LOW);
-  DELAY(delay_time / 2);
+  delay(delay_time / 2);
 }
 void Blink(int led_number, int delay_time, int blink_times) {
   for (int i = 0; i < blink_times; i++) {
@@ -148,8 +155,9 @@ void power_off() {
   digitalWrite(BLUE_LED, LOW);
 }
 void force_door_off() {
-  DELAY(3000);
   if (door_close() && current_angle != DOOR_CLOSE) {
+    Serial.println("Closing door...>");
+    delay(3000);
     power_off();
     Blink(GREEN_LED, 500, 5);
     servo.write(DOOR_CLOSE);
@@ -157,7 +165,11 @@ void force_door_off() {
   }
 }
 void button_event() {
+  // Blink(GREEN_LED, 500, 5);
   if (digitalRead(BUTTON_PIN) == HIGH) {
+    println("---------------------------------------------------");
+    println("Button pressed");
+    println("---------------------------------------------------");
     delay(1000);
     if (current_angle == DOOR_CLOSE) {
       servo.write(DOOR_OPEN);
@@ -190,6 +202,23 @@ void serialManager(String command) {
   } else if (command.indexOf("#status") != -1) {
     Serial.println("Door status: " + String(door_close()));
     Serial.println("Monitoring status: " + String(monitoring_status));
+  } else if (command.indexOf("#battery") != -1) {
+    println(F("*************************************"));
+    println("String recived : " + command);
+
+    int dotIndex = command.indexOf('.');
+    int exclamationIndex = command.indexOf('!');
+    if (dotIndex != -1 && exclamationIndex != -1 &&
+        exclamationIndex > dotIndex + 1) {
+      String batteryLevelString =
+          command.substring(dotIndex + 1, exclamationIndex);
+      accumulatedTime += batteryLevelString.toInt();
+      println("Required time : " + String(accumulatedTime) + " Seconds");
+    } else {
+      println("Invalid input string!");
+    }
+
+    print(F("\n*************************************"));
   } else {
     Serial.println("Command not found");
   }
@@ -200,29 +229,29 @@ void battery_manager() {
                  +" previous_time: " + String(previous_time));
   // delay(1000);
   if (digitalRead(AC_INPUT) == LOW) {
-    digitalWrite(SWITCHER, HIGH);
     accumulatedTime_manager(1);
     if (outputPinState) {
+      digitalWrite(SERVO_BACKUP_PIN, HIGH);
+      delay(2000);
+
+      digitalWrite(RELAY_MANAGER_PIN, HIGH);
+      delay(2000);
       digitalWrite(CHARGING_RELAY, HIGH);
+      delay(3000);
+
+      digitalWrite(RELAY_MANAGER_PIN, LOW);
+      digitalWrite(CHARGING_RELAY, LOW);
+
       outputPinState = false;
     }
   } else if (digitalRead(AC_INPUT) == HIGH) {
-    // add transister at pin 11 to solve issue
-    digitalWrite(RELAY_MANAGER_PIN, HIGH);
-    Serial.println("Relay manager pin is HIGH");
-    delay(1000);
-    digitalWrite(SWITCHER, LOW);
-    delay(2000);
-    digitalWrite(RELAY_MANAGER_PIN, LOW);
-    Serial.println("Relay manager pin is LOW");
-    // # Upper code will fix the @relay_struggling_issue
-
+    digitalWrite(SERVO_BACKUP_PIN, LOW);
     if (accumulatedTime > 0) {
-      digitalWrite(CHARGING_RELAY, LOW);
+      digitalWrite(CHARGING_RELAY, HIGH);
       outputPinState = true;
       accumulatedTime_manager(-1);
     } else {
-      digitalWrite(CHARGING_RELAY, HIGH);
+      digitalWrite(CHARGING_RELAY, LOW);
       outputPinState = false;
       previous_time = (millis() / 1000);
     }
@@ -237,4 +266,12 @@ void accumulatedTime_manager(int change) {
   } else {
     accumulatedTime = temp_accumulatedTime;
   }
+}
+void println(String input) {
+  if (DEBUGGING)
+    print(input + "\n");
+}
+void print(String input) {
+  if (DEBUGGING)
+    Serial.print(input);
 }
