@@ -1,5 +1,4 @@
-// #8 Relays are still struggling
-// working on custom Relay board
+
 #include <Servo.h>
 
 Servo servo;
@@ -18,7 +17,7 @@ Servo servo;
 #define SWITCHER 4       // output -> switch between battery and adapter
 
 #define DOOR_CLOSE 180
-#define DOOR_OPEN 0
+#define DOOR_OPEN 60
 bool door_status = false;
 bool DEBUGGING = true;
 
@@ -218,7 +217,19 @@ void serialManager(String command) {
       println("Invalid input string!");
     }
 
-    print(F("\n*************************************"));
+    println(F("*************************************"));
+  } else if (command.indexOf("#servo") != -1) {
+    int dotIndex = command.indexOf('.');
+    int exclamationIndex = command.indexOf('!');
+    if (dotIndex != -1 && exclamationIndex != -1 &&
+        exclamationIndex > dotIndex + 1) {
+      String servoAngleString =
+          command.substring(dotIndex + 1, exclamationIndex);
+      servo.write(servoAngleString.toInt());
+      println("Servo angle : " + String(servoAngleString.toInt()));
+    } else {
+      println("Invalid input string!");
+    }
   } else {
     Serial.println("Command not found");
   }
@@ -231,16 +242,16 @@ void battery_manager() {
   if (digitalRead(AC_INPUT) == LOW) {
     accumulatedTime_manager(1);
     if (outputPinState) {
-      digitalWrite(SERVO_BACKUP_PIN, HIGH);
+      digitalWrite(RELAY_MANAGER_PIN, HIGH);
       delay(2000);
 
-      digitalWrite(RELAY_MANAGER_PIN, HIGH);
       delay(2000);
       digitalWrite(CHARGING_RELAY, HIGH);
       delay(3000);
 
       digitalWrite(RELAY_MANAGER_PIN, LOW);
       digitalWrite(CHARGING_RELAY, LOW);
+      digitalWrite(SERVO_BACKUP_PIN, HIGH);
 
       outputPinState = false;
     }
