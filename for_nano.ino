@@ -3,9 +3,9 @@
 
 Servo servo;
 
-#define AC_INPUT 12          // input
-#define RELAY_MANAGER_PIN 11 // transistor on this pin
-#define SERVO_BACKUP_PIN 10  // output
+#define AC_INPUT 12             // input
+#define LED_ 11                 // transistor on this pin
+#define BATTERY_TO_SERVO_PIN 10 // output
 #define RED_LED 9
 #define GREEN_LED 8
 #define BLUE_LED 7
@@ -19,7 +19,7 @@ Servo servo;
 #define DOOR_CLOSE 180
 #define DOOR_OPEN 60
 bool door_status = false;
-bool DEBUGGING = true;
+bool DEBUGGING = false;
 
 int current_angle = 0;
 
@@ -67,8 +67,8 @@ void setup() {
   pinMode(BUTTON_PIN, INPUT);
   pinMode(CHARGING_RELAY, OUTPUT);
   pinMode(AC_INPUT, INPUT);
-  pinMode(RELAY_MANAGER_PIN, OUTPUT);
-  pinMode(SERVO_BACKUP_PIN, OUTPUT);
+  pinMode(LED_, OUTPUT);
+  pinMode(BATTERY_TO_SERVO_PIN, OUTPUT);
   println("leaving void setup");
   digitalWrite(LED_BUILTIN, HIGH);
 }
@@ -235,28 +235,30 @@ void serialManager(String command) {
   }
 }
 void battery_manager() {
-  Serial.println("AC_INPUT: " + String(digitalRead(AC_INPUT)) +
-                 " accumulatedTime: " + String(accumulatedTime) +
-                 +" previous_time: " + String(previous_time));
+  Serial.println(
+      "_" + String(digitalRead(AC_INPUT)) + "_ AT: " + String(accumulatedTime) +
+      +" PT: " +
+      String(previous_time)); // AT = Accumulated Time, PT = Previous Time
   // delay(1000);
   if (digitalRead(AC_INPUT) == LOW) {
     accumulatedTime_manager(1);
     if (outputPinState) {
-      digitalWrite(RELAY_MANAGER_PIN, HIGH);
-      delay(2000);
-
+      digitalWrite(LED_, HIGH);
       delay(2000);
       digitalWrite(CHARGING_RELAY, HIGH);
-      delay(3000);
+      delay(300);
 
-      digitalWrite(RELAY_MANAGER_PIN, LOW);
+      digitalWrite(LED_, LOW);
       digitalWrite(CHARGING_RELAY, LOW);
-      digitalWrite(SERVO_BACKUP_PIN, HIGH);
+      digitalWrite(BATTERY_TO_SERVO_PIN, HIGH);
 
       outputPinState = false;
     }
   } else if (digitalRead(AC_INPUT) == HIGH) {
-    digitalWrite(SERVO_BACKUP_PIN, LOW);
+    if (millis() / 1000 < 10) {
+      accumulatedTime = 20;
+    }
+    digitalWrite(BATTERY_TO_SERVO_PIN, LOW);
     if (accumulatedTime > 0) {
       digitalWrite(CHARGING_RELAY, HIGH);
       outputPinState = true;
