@@ -3,9 +3,10 @@
 
 Servo servo;
 
-#define AC_INPUT 12             // input
-#define LED_ 11                 // transistor on this pin
-#define BATTERY_TO_SERVO_PIN 10 // output
+#define AC_INPUT 12 // check if the adapter is connected and power's on
+#define LED_ 11     // force power bank to power on
+#define BATTERY_TO_SERVO_PIN                                                   \
+  10 // Servo motor will be deal with battery when the adapter is not connected
 #define RED_LED 9
 #define GREEN_LED 8
 #define BLUE_LED 7
@@ -13,13 +14,13 @@ Servo servo;
 
 #define DOOR_PIN 3
 #define BUTTON_PIN 2
-#define CHARGING_RELAY 5 // output
+#define CHARGING_RELAY 5 // responsible for charging the battery
 #define SWITCHER 4       // output -> switch between battery and adapter
 
 #define DOOR_CLOSE 180
 #define DOOR_OPEN 60
 bool door_status = false;
-bool DEBUGGING = false;
+bool DEBUGGING = true;
 
 int current_angle = 0;
 
