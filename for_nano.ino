@@ -5,20 +5,21 @@ Servo servo;
 
 #define AC_INPUT 12 // check if the adapter is connected and power's on
 #define LED_ 11     // force power bank to power on
-#define BATTERY_TO_SERVO_PIN 10 // Servo powerup with battery when adapter isn't connected
+#define BATTERY_TO_SERVO_PIN                                                   \
+  10 // Servo powerup with battery when adapter isn't connected
 #define RED_LED 9
 #define GREEN_LED 8
 #define BLUE_LED 7
 #define SERVO_PIN 6
 #define CHARGING_RELAY 5 // responsible for charging the battery
 #define SWITCHER 4       // output -> switch between battery and adapter
-#define DOOR_PIN 3      //  pin will check either door is open or close
-#define BUTTON_PIN 2    // Button to alter servo angel
+#define DOOR_PIN 3       //  pin will check either door is open or close
+#define BUTTON_PIN 2     // Button to alter servo angel
 
 #define DOOR_CLOSE 180
-#define DOOR_OPEN 60    // 60 angle in enough for my door lock
+#define DOOR_OPEN 60 // 60 angle in enough for my door lock
 bool door_status = false;
-bool DEBUGGING = true;    // additional outputs will displayed when true
+bool DEBUGGING = false; // additional outputs will displayed when true
 
 int current_angle = 0;
 
@@ -241,7 +242,7 @@ void battery_manager() {
     }
   } else if (digitalRead(AC_INPUT) == HIGH) {
     if (millis() / 1000 < 10) {
-      accumulatedTime = 20;
+      accumulatedTime = 30000;
     }
     digitalWrite(BATTERY_TO_SERVO_PIN, LOW);
     if (accumulatedTime > 0) {
