@@ -5,22 +5,20 @@ Servo servo;
 
 #define AC_INPUT 12 // check if the adapter is connected and power's on
 #define LED_ 11     // force power bank to power on
-#define BATTERY_TO_SERVO_PIN                                                   \
-  10 // Servo motor will be deal with battery when the adapter is not connected
+#define BATTERY_TO_SERVO_PIN 10 // Servo powerup with battery when adapter isn't connected
 #define RED_LED 9
 #define GREEN_LED 8
 #define BLUE_LED 7
 #define SERVO_PIN 6
-
-#define DOOR_PIN 3
-#define BUTTON_PIN 2
 #define CHARGING_RELAY 5 // responsible for charging the battery
 #define SWITCHER 4       // output -> switch between battery and adapter
+#define DOOR_PIN 3      //  pin will check either door is open or close
+#define BUTTON_PIN 2    // Button to alter servo angel
 
 #define DOOR_CLOSE 180
-#define DOOR_OPEN 60
+#define DOOR_OPEN 60    // 60 angle in enough for my door lock
 bool door_status = false;
-bool DEBUGGING = true;
+bool DEBUGGING = true;    // additional outputs will displayed when true
 
 int current_angle = 0;
 
@@ -35,21 +33,7 @@ bool outputPinState = true;
 // #-----------------
 
 String command = "";
-// BLYNK_WRITE(V3) {
-//   current_angle = param.asInt();
-//   servo.write(current_angle);
-// }
 
-// BLYNK_WRITE(V7) {
-//   int monitor = param.asInt();
-//   if (monitor == 1) {
-//     monitoring_status = true;
-//     digitalWrite(BLUE_LED, HIGH);
-//   } else {
-//     monitoring_status = false;
-//     digitalWrite(BLUE_LED, LOW);
-//   }
-// }
 void DELAY(int delay_time);
 void setup() {
   // Debug console
