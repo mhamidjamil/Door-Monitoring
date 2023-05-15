@@ -140,9 +140,9 @@ void power_off() {
   digitalWrite(BLUE_LED, LOW);
 }
 void force_door_off() {
+  delay(3000);
   if (door_close() && current_angle != DOOR_CLOSE) {
     Serial.println("Closing door...>");
-    delay(3000);
     power_off();
     Blink(GREEN_LED, 500, 5);
     servo.write(DOOR_CLOSE);
