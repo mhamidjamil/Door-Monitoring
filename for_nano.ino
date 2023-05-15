@@ -242,7 +242,7 @@ void battery_manager() {
     }
   } else if (digitalRead(AC_INPUT) == HIGH) {
     if (millis() / 1000 < 10) {
-      accumulatedTime = 30000;
+      accumulatedTime = 1800; // charge battery for half houre.
     }
     digitalWrite(BATTERY_TO_SERVO_PIN, LOW);
     if (accumulatedTime > 0) {
