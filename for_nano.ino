@@ -1,4 +1,4 @@
-
+// nano have to link with esp8266 for wifi usage
 #include <Servo.h>
 
 Servo servo;
