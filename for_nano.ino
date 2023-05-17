@@ -140,7 +140,7 @@ void power_off() {
   digitalWrite(BLUE_LED, LOW);
 }
 void force_door_off() {
-  delay(3000);
+  delay(3000); // ! Need attention
   if (door_close() && current_angle != DOOR_CLOSE) {
     Serial.println("Closing door...>");
     power_off();
