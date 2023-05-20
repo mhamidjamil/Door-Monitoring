@@ -148,8 +148,8 @@ void power_off() {
 void force_door_off() {
   println("before first condition");
   if (((millis() / 1000) >= pin_second) &&
-          ((((millis() / 1000) % 100) + (DOOR_DELAY + 2)) < LIMIT) ||
-      pin_second == 0) {
+          (!(((millis() / 1000) % 100) > (LIMIT - (DOOR_DELAY + 2)))) ||
+      pin_second == 0) { //` second part of condition is not fine
     pin_second = 0;
     println("Entered in second condition");
     if (door_close() && current_angle != DOOR_CLOSE) {
@@ -314,8 +314,8 @@ void DOOR(bool status, bool time_allotment) {
   //` 1: (true = open, false = close),
   // # 2: time_stamp if true it will allocated time stamp to `pin_second`
   DOOR(status);
+  delay(700);
   do {
-
     if ((((millis() / 1000) % 100) + DOOR_DELAY) > LIMIT) {
       pin_second = (DOOR_DELAY - 1) - (LIMIT - (millis() % 100));
     } else {
