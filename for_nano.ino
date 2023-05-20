@@ -1,4 +1,6 @@
-// nano have to link with esp8266 for wifi usage
+//$ build 2.0.1
+//* last work: 2023-may-20 12:40PM
+// # nano have to link with esp8266 for wifi usage
 #include <Servo.h>
 
 Servo servo;
