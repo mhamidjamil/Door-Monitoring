@@ -67,8 +67,8 @@ void setup() {
 
 void loop() {
   // Blynk.run();
-  println("I'm alive :) " + String(millis() / 1000));
-  DELAY(1000);
+  // println("I'm alive :) " + String(millis() / 1000));
+  Delay(1000);
   if (Serial.available() > 0) {
     String command = Serial.readStringUntil('\n');
     serialManager(command);
@@ -146,14 +146,32 @@ void power_off() {
   digitalWrite(BLUE_LED, LOW);
 }
 void force_door_off() {
+  println("before first condition");
   if (((millis() / 1000) >= pin_second) &&
-      (((millis() / 1000) + (DOOR_DELAY + 2)) < LIMIT)) {
+          ((((millis() / 1000) % 100) + (DOOR_DELAY + 2)) < LIMIT) ||
+      pin_second == 0) {
+    pin_second = 0;
+    println("Entered in second condition");
     if (door_close() && current_angle != DOOR_CLOSE) {
       Serial.println("Closing door...>");
       power_off();
-      Blink(GREEN_LED, 500, 5);
+      Blink(GREEN_LED, 150, 4);
       DOOR(false);
+    } else {
+      println("\n$$$$$$$$\nDoor close failed; logs \n : c_angle: " +
+              String(current_angle) + ", d_close() : " + String(door_close()) +
+              "\n$$$$$$$$\n");
     }
+  } else {
+    if (current_angle == DOOR_CLOSE) {
+      println("Door is already closed");
+      pin_second = 0;
+    }
+    println("*********************");
+    println("1st condition fail logs: ");
+    println("millis : " + String(millis() / 1000) + "\t" +
+            "pin_second : " + pin_second);
+    println("*********************");
   }
 }
 void button_event() {
@@ -190,6 +208,8 @@ void serialManager(String command) {
   } else if (command.indexOf("#status") != -1) {
     Serial.println("Door status: " + String(door_close()));
     Serial.println("Monitoring status: " + String(monitoring_status));
+  } else if (command.indexOf("#debug") != -1) {
+    DEBUGGING = !DEBUGGING;
   } else if (command.indexOf("#battery") != -1) {
     println(F("*************************************"));
     println("String recived : " + command);
@@ -224,10 +244,10 @@ void serialManager(String command) {
   }
 }
 void battery_manager() {
-  Serial.println(
-      "_" + String(digitalRead(AC_INPUT)) + "_ AT: " + String(accumulatedTime) +
-      +" PT: " +
-      String(previous_time)); // AT = Accumulated Time, PT = Previous Time
+  println(("_" + String(digitalRead(AC_INPUT)) + "_ AT: " +
+           String(accumulatedTime) + +" PT: " + String(previous_time)),
+          1000); // AT = Accumulated Time, PT = Previous Time
+
   // delay(1000);
   if (digitalRead(AC_INPUT) == LOW) {
     accumulatedTime_manager(1);
@@ -269,6 +289,10 @@ void accumulatedTime_manager(int change) {
     accumulatedTime = temp_accumulatedTime;
   }
 }
+void println(String str, int delay_time) {
+  println(str);
+  DELAY(delay_time);
+}
 void println(String input) {
   if (DEBUGGING)
     print(input + "\n");
@@ -290,7 +314,23 @@ void DOOR(bool status, bool time_allotment) {
   //` 1: (true = open, false = close),
   // # 2: time_stamp if true it will allocated time stamp to `pin_second`
   DOOR(status);
-  while (time_allotment && !door_close()) {
-    pin_second = (DOOR_DELAY - 1) - (LIMIT - ((millis() / 1000) % 100));
+  do {
+
+    if ((((millis() / 1000) % 100) + DOOR_DELAY) > LIMIT) {
+      pin_second = (DOOR_DELAY - 1) - (LIMIT - (millis() % 100));
+    } else {
+      pin_second = ((millis() / 1000) % 100) + DOOR_DELAY;
+    }
+    println("Initializing pin seconds to -> " + String(pin_second) +
+            "from millis : " + String((millis() / 1000) % 100));
+  } while (time_allotment && door_close());
+  println("leaving DOOR function with pin_second value :  " +
+          String(pin_second));
+}
+void Delay(int delay_time) {
+  if (DEBUGGING) {
+    DELAY(delay_time);
+  } else {
+    DELAY(50);
   }
 }
