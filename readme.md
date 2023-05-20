@@ -1,4 +1,5 @@
-(! Valid for door security folder only) 
+(! Valid for door security folder only)
+
 # Blynk ESP32/ESP8266 Door Monitoring System
 
 This is a simple door monitoring system using an ESP32/ESP8266 and Blynk app.
