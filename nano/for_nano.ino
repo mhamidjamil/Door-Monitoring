@@ -1,4 +1,4 @@
-//$ build 2.0.1
+//$ build 2.0.2
 //* last work: 2023-may-20 12:40PM
 // # nano have to link with esp8266 for wifi usage
 #include <Servo.h>
@@ -7,8 +7,8 @@ Servo servo;
 
 #define AC_INPUT 12 // check if the adapter is connected and power's on
 #define LED_ 11     // force power bank to power on
-#define BATTERY_TO_SERVO_PIN                                                   \
-  10 // Servo powerup with battery when adapter isn't connected
+#define BATTERY_TO_SERVO_PIN 10
+// Servo power up with battery when adapter isn't connected
 #define RED_LED 9
 #define GREEN_LED 8
 #define BLUE_LED 7
@@ -26,6 +26,10 @@ bool DEBUGGING = false; // additional outputs will displayed when true
 int current_angle = 0;
 
 bool monitoring_status = false;
+
+#define LIMIT 99
+#define DOOR_DELAY 3
+byte pin_second = 0;
 
 // #-----------------
 // Battery function
@@ -131,9 +135,9 @@ void Blink(int led_number, int delay_time, int blink_times) {
 }
 bool door_close() {
   if (digitalRead(DOOR_PIN) == LOW) {
-    return true;
+    return true; // door is closed
   } else {
-    return false;
+    return false; // door is open
   }
 }
 void power_off() {
@@ -142,41 +146,38 @@ void power_off() {
   digitalWrite(BLUE_LED, LOW);
 }
 void force_door_off() {
-  delay(3000); // ! Need attention
-  if (door_close() && current_angle != DOOR_CLOSE) {
-    Serial.println("Closing door...>");
-    power_off();
-    Blink(GREEN_LED, 500, 5);
-    servo.write(DOOR_CLOSE);
-    current_angle = DOOR_CLOSE;
+  if (((millis() / 1000) >= pin_second) &&
+      (((millis() / 1000) + (DOOR_DELAY + 2)) < LIMIT)) {
+    if (door_close() && current_angle != DOOR_CLOSE) {
+      Serial.println("Closing door...>");
+      power_off();
+      Blink(GREEN_LED, 500, 5);
+      DOOR(false);
+    }
   }
 }
 void button_event() {
   // Blink(GREEN_LED, 500, 5);
   if (digitalRead(BUTTON_PIN) == HIGH) {
-    println("---------------------------------------------------");
-    println("Button pressed");
-    println("---------------------------------------------------");
-    delay(1000);
+    println("$-----------------------$");
+    println("     Button pressed");
+    println("$-----------------------$");
+    delay(200);
     if (current_angle == DOOR_CLOSE) {
-      servo.write(DOOR_OPEN);
-      current_angle = DOOR_OPEN;
+      DOOR(true, true);
       Blink(GREEN_LED, 500, 2);
     } else {
-      servo.write(DOOR_CLOSE);
-      current_angle = DOOR_CLOSE;
+      DOOR(false);
       Blink(RED_LED, 500, 2);
     }
   }
 }
 void serialManager(String command) {
   if (command.indexOf("#open") != -1) {
-    servo.write(DOOR_OPEN);
-    current_angle = DOOR_OPEN;
+    DOOR(true, true);
     Serial.println("Door is open");
   } else if (command.indexOf("#close") != -1) {
-    servo.write(DOOR_CLOSE);
-    current_angle = DOOR_CLOSE;
+    DOOR(false);
     Serial.println("Door is close");
   } else if (command.indexOf("#monitoring") != -1) {
     monitoring_status = true;
@@ -244,7 +245,7 @@ void battery_manager() {
     }
   } else if (digitalRead(AC_INPUT) == HIGH) {
     if (millis() / 1000 < 10) {
-      accumulatedTime = 1800; // charge battery for half houre.
+      accumulatedTime = 2000; // charge battery for half hour.
     }
     digitalWrite(BATTERY_TO_SERVO_PIN, LOW);
     if (accumulatedTime > 0) {
@@ -275,4 +276,21 @@ void println(String input) {
 void print(String input) {
   if (DEBUGGING)
     Serial.print(input);
+}
+void DOOR(bool status) { // true = open, false = close
+  if (status) {
+    servo.write(DOOR_OPEN);
+    current_angle = DOOR_OPEN;
+  } else {
+    servo.write(DOOR_CLOSE);
+    current_angle = DOOR_CLOSE;
+  }
+}
+void DOOR(bool status, bool time_allotment) {
+  //` 1: (true = open, false = close),
+  // # 2: time_stamp if true it will allocated time stamp to `pin_second`
+  DOOR(status);
+  while (time_allotment && !door_close()) {
+    pin_second = (DOOR_DELAY - 1) - (LIMIT - ((millis() / 1000) % 100));
+  }
 }
