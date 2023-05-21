@@ -1,5 +1,5 @@
-//$ build 2.0.2
-//* last work: 2023-may-20 12:40PM
+//$ build 2.0.4
+//* last work: 2023-may-21 07:15PM
 // # nano have to link with esp8266 for wifi usage
 #include <Servo.h>
 
@@ -30,7 +30,8 @@ bool monitoring_status = false;
 #define LIMIT 99
 #define DOOR_DELAY 3
 byte pin_second = 0;
-
+bool force_door_off = false;
+bool auto_door_off = true;
 // #-----------------
 // Battery function
 
@@ -101,85 +102,12 @@ void loop() {
   force_door_off();
   print("After force off\t");
 }
-void DELAY(int delay_time) {
-  for (int i = 0; i < delay_time; i += 10) {
-    delay(10);
-    button_event();
-  }
-}
-void Blink(int led_number, int delay_time) {
-  digitalWrite(led_number, HIGH);
-  delay(delay_time / 2);
-  digitalWrite(led_number, LOW);
-  delay(delay_time / 2);
-}
-void Blink(int led_number, int delay_time, int blink_times) {
-  for (int i = 0; i < blink_times; i++) {
-    Blink(led_number, delay_time);
-  }
-}
-bool door_close() {
-  if (digitalRead(DOOR_PIN) == LOW) {
-    return true; // door is closed
-  } else {
-    return false; // door is open
-  }
-}
-void power_off() {
-  digitalWrite(GREEN_LED, LOW);
-  digitalWrite(RED_LED, LOW);
-  digitalWrite(BLUE_LED, LOW);
-}
-void force_door_off() {
-  println("before first condition");
-  if (((millis() / 1000) >= pin_second) &&
-          ((((millis() / 1000) % 100) + (DOOR_DELAY + 2)) < LIMIT) ||
-      pin_second == 0) {
-    pin_second = 0;
-    println("Entered in second condition");
-    if (door_close() && current_angle != DOOR_CLOSE) {
-      Serial.println("Closing door...>");
-      power_off();
-      Blink(GREEN_LED, 150, 4);
-      DOOR(false);
-    } else {
-      println("\n$$$$$$$$\nDoor close failed; logs \n : c_angle: " +
-              String(current_angle) + ", d_close() : " + String(door_close()) +
-              "\n$$$$$$$$\n");
-    }
-  } else {
-    if (current_angle == DOOR_CLOSE) {
-      println("Door is already closed");
-      pin_second = 0;
-    }
-    println("*********************");
-    println("1st condition fail logs: ");
-    println("millis : " + String(millis() / 1000) + "\t" +
-            "pin_second : " + pin_second);
-    println("*********************");
-  }
-}
-void button_event() {
-  // Blink(GREEN_LED, 500, 5);
-  if (digitalRead(BUTTON_PIN) == HIGH) {
-    println("$-----------------------$");
-    println("     Button pressed");
-    println("$-----------------------$");
-    delay(200);
-    if (current_angle == DOOR_CLOSE) {
-      DOOR(true, true);
-      Blink(GREEN_LED, 500, 2);
-    } else {
-      DOOR(false);
-      Blink(RED_LED, 500, 2);
-    }
-  }
-}
 void serialManager(String command) {
   if (command.indexOf("#open") != -1) {
     DOOR(true, true);
     Serial.println("Door is open");
   } else if (command.indexOf("#close") != -1) {
+    auto_door_off = true;
     DOOR(false);
     Serial.println("Door is close");
   } else if (command.indexOf("#monitoring") != -1) {
@@ -195,7 +123,23 @@ void serialManager(String command) {
     Serial.println("Monitoring status: " + String(monitoring_status));
   } else if (command.indexOf("#debug") != -1) {
     DEBUGGING = !DEBUGGING;
-  } else if (command.indexOf("#battery") != -1) {
+  } else if (command.indexOf("#reset") != -1) {
+    accumulatedTime = 0;
+    previous_time = (millis() / 1000);
+  } else if (command.indexOf("#time") != -1) {
+    Serial.println("\n^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAccumulated time: " +
+                   String(accumulatedTime));
+    Serial.println("Previous time: " + String(previous_time) +
+                   "\n^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+  } else if (command.indexOf("#force") != -1) {
+    force_door_off = true;
+  } else if (command.indexOf("#stop_force") != -1) {
+    force_door_off = false;
+  } else if (command.indexOf("#auto") != -1) {
+    auto_door_off = true;
+  } else if (command.indexOf("#stop_auto") != -1) {
+    auto_door_off = false;
+  } else if (command.indexOf("#battery") != -1) { // set accumulated time
     println(F("*************************************"));
     println("String recived : " + command);
 
@@ -208,7 +152,7 @@ void serialManager(String command) {
       accumulatedTime += batteryLevelString.toInt();
       println("Required time : " + String(accumulatedTime) + " Seconds");
     } else {
-      println("Invalid input string!");
+      println("Invalid input string!", true);
     }
 
     println(F("*************************************"));
@@ -304,6 +248,7 @@ void button_event() {
       DOOR(true, true);
       Blink(GREEN_LED, 500, 2);
     } else {
+      auto_door_off = true;
       DOOR(false);
       Blink(RED_LED, 500, 2);
     }
@@ -321,11 +266,15 @@ void accumulatedTime_manager(int change) {
 }
 void DOOR(bool status) { // true = open, false = close
   if (status) {
-    servo.write(DOOR_OPEN);
-    current_angle = DOOR_OPEN;
+    if (!force_door_off) {
+      servo.write(DOOR_OPEN);
+      current_angle = DOOR_OPEN;
+    }
   } else {
-    servo.write(DOOR_CLOSE);
-    current_angle = DOOR_CLOSE;
+    if (auto_door_off) {
+      servo.write(DOOR_CLOSE);
+      current_angle = DOOR_CLOSE;
+    }
   }
 }
 void DOOR(bool status, bool time_allotment) {
@@ -350,6 +299,11 @@ void Delay(int delay_time) {
     DELAY(delay_time);
   } else {
     DELAY(50);
+  }
+}
+void println(String str, bool print_status) {
+  if (print_status) {
+    println(str);
   }
 }
 void println(String str, int delay_time) {
