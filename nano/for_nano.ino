@@ -43,15 +43,11 @@ String command = "";
 
 void DELAY(int delay_time);
 void setup() {
-  // Debug console
   Serial.begin(9600);
   pinMode(LED_BUILTIN, OUTPUT);
-  // Serial.println("void setup enter point 1");
-  // delay(500);
-  // Blynk.begin(auth, ssid, pass);
-  // Serial.println("void setup After blynk");
 
   servo.attach(SERVO_PIN);
+  DOOR(false);
   pinMode(DOOR_PIN, INPUT_PULLUP);
   pinMode(GREEN_LED, OUTPUT);
   pinMode(RED_LED, OUTPUT);
@@ -66,129 +62,44 @@ void setup() {
 }
 
 void loop() {
-  // Blynk.run();
   // println("I'm alive :) " + String(millis() / 1000));
   Delay(1000);
   if (Serial.available() > 0) {
     String command = Serial.readStringUntil('\n');
     serialManager(command);
   }
-  // if (Blynk.connected() || true) {
-  if (true) {
-    // Check monitoring mode status
-    if (monitoring_status) {
-      digitalWrite(BLUE_LED, HIGH);
-      if (door_close()) {
-        if (!door_status) {
-          door_status = true;
-        }
-        digitalWrite(GREEN_LED, LOW);
-        digitalWrite(RED_LED, LOW);
-        // Blynk.virtualWrite(V4, 1);
-        // Blynk.virtualWrite(V5, 1);
-      } else {
-        if (door_status) {
-          door_status = false;
-        }
-        digitalWrite(RED_LED, HIGH);
-        // Blynk.virtualWrite(V4, 0);
-        // Blynk.virtualWrite(V5, 0);
+  if (monitoring_status) {
+    digitalWrite(BLUE_LED, HIGH);
+    if (door_close()) {
+      if (!door_status) {
+        door_status = true;
       }
-    } else {
+      digitalWrite(GREEN_LED, LOW);
       digitalWrite(RED_LED, LOW);
-      if (door_close()) {
-        if (!door_status) {
-          door_status = true;
-        }
-        digitalWrite(GREEN_LED, LOW);
-      } else {
-        if (door_status) {
-          door_status = false;
-        }
-        digitalWrite(GREEN_LED, HIGH);
+    } else {
+      if (door_status) {
+        door_status = false;
       }
-      // Blynk.virtualWrite(V5, !digitalRead(DOOR_PIN));
+      digitalWrite(RED_LED, HIGH);
+    }
+  } else {
+    digitalWrite(RED_LED, LOW);
+    if (door_close()) {
+      if (!door_status) {
+        door_status = true;
+      }
+      digitalWrite(GREEN_LED, LOW);
+    } else {
+      if (door_status) {
+        door_status = false;
+      }
+      digitalWrite(GREEN_LED, HIGH);
     }
   }
-  print("After true,\t");
   battery_manager();
   println("After battery manager");
   force_door_off();
   print("After force off\t");
-}
-void DELAY(int delay_time) {
-  for (int i = 0; i < delay_time; i += 10) {
-    delay(10);
-    button_event();
-  }
-}
-void Blink(int led_number, int delay_time) {
-  digitalWrite(led_number, HIGH);
-  delay(delay_time / 2);
-  digitalWrite(led_number, LOW);
-  delay(delay_time / 2);
-}
-void Blink(int led_number, int delay_time, int blink_times) {
-  for (int i = 0; i < blink_times; i++) {
-    Blink(led_number, delay_time);
-  }
-}
-bool door_close() {
-  if (digitalRead(DOOR_PIN) == LOW) {
-    return true; // door is closed
-  } else {
-    return false; // door is open
-  }
-}
-void power_off() {
-  digitalWrite(GREEN_LED, LOW);
-  digitalWrite(RED_LED, LOW);
-  digitalWrite(BLUE_LED, LOW);
-}
-void force_door_off() {
-  println("before first condition");
-  if (((millis() / 1000) >= pin_second) &&
-          ((((millis() / 1000) % 100) + (DOOR_DELAY + 2)) < LIMIT) ||
-      pin_second == 0) {
-    pin_second = 0;
-    println("Entered in second condition");
-    if (door_close() && current_angle != DOOR_CLOSE) {
-      Serial.println("Closing door...>");
-      power_off();
-      Blink(GREEN_LED, 150, 4);
-      DOOR(false);
-    } else {
-      println("\n$$$$$$$$\nDoor close failed; logs \n : c_angle: " +
-              String(current_angle) + ", d_close() : " + String(door_close()) +
-              "\n$$$$$$$$\n");
-    }
-  } else {
-    if (current_angle == DOOR_CLOSE) {
-      println("Door is already closed");
-      pin_second = 0;
-    }
-    println("*********************");
-    println("1st condition fail logs: ");
-    println("millis : " + String(millis() / 1000) + "\t" +
-            "pin_second : " + pin_second);
-    println("*********************");
-  }
-}
-void button_event() {
-  // Blink(GREEN_LED, 500, 5);
-  if (digitalRead(BUTTON_PIN) == HIGH) {
-    println("$-----------------------$");
-    println("     Button pressed");
-    println("$-----------------------$");
-    delay(200);
-    if (current_angle == DOOR_CLOSE) {
-      DOOR(true, true);
-      Blink(GREEN_LED, 500, 2);
-    } else {
-      DOOR(false);
-      Blink(RED_LED, 500, 2);
-    }
-  }
 }
 void serialManager(String command) {
   if (command.indexOf("#open") != -1) {
@@ -279,6 +190,51 @@ void battery_manager() {
     }
   }
 }
+void force_door_off() {
+  println("before first condition");
+  if (((millis() / 1000) >= pin_second) &&
+          (!(((millis() / 1000) % 100) > (LIMIT - (DOOR_DELAY + 2)))) ||
+      pin_second == 0) { //` second part of condition is not fine
+    pin_second = 0;
+    println("Entered in second condition");
+    if (door_close() && current_angle != DOOR_CLOSE) {
+      Serial.println("Closing door...>");
+      power_off();
+      Blink(GREEN_LED, 150, 4);
+      DOOR(false);
+    } else {
+      println("\n$$$$$$$$\nDoor close failed; logs \n : c_angle: " +
+              String(current_angle) + ", d_close() : " + String(door_close()) +
+              "\n$$$$$$$$\n");
+    }
+  } else {
+    if (current_angle == DOOR_CLOSE) {
+      println("Door is already closed");
+      pin_second = 0;
+    }
+    println("*********************");
+    println("1st condition fail logs: ");
+    println("millis : " + String(millis() / 1000) + "\t" +
+            "pin_second : " + pin_second);
+    println("*********************");
+  }
+}
+void button_event() {
+  // Blink(GREEN_LED, 500, 5);
+  if (digitalRead(BUTTON_PIN) == HIGH) {
+    println("$-----------------------$");
+    println("     Button pressed");
+    println("$-----------------------$");
+    delay(200);
+    if (current_angle == DOOR_CLOSE) {
+      DOOR(true, true);
+      Blink(GREEN_LED, 500, 2);
+    } else {
+      DOOR(false);
+      Blink(RED_LED, 500, 2);
+    }
+  }
+}
 void accumulatedTime_manager(int change) {
   int temp_accumulatedTime =
       accumulatedTime + change * ((millis() / 1000) - previous_time);
@@ -288,18 +244,6 @@ void accumulatedTime_manager(int change) {
   } else {
     accumulatedTime = temp_accumulatedTime;
   }
-}
-void println(String str, int delay_time) {
-  println(str);
-  DELAY(delay_time);
-}
-void println(String input) {
-  if (DEBUGGING)
-    print(input + "\n");
-}
-void print(String input) {
-  if (DEBUGGING)
-    Serial.print(input);
 }
 void DOOR(bool status) { // true = open, false = close
   if (status) {
@@ -314,8 +258,8 @@ void DOOR(bool status, bool time_allotment) {
   //` 1: (true = open, false = close),
   // # 2: time_stamp if true it will allocated time stamp to `pin_second`
   DOOR(status);
+  delay(700);
   do {
-
     if ((((millis() / 1000) % 100) + DOOR_DELAY) > LIMIT) {
       pin_second = (DOOR_DELAY - 1) - (LIMIT - (millis() % 100));
     } else {
@@ -333,4 +277,45 @@ void Delay(int delay_time) {
   } else {
     DELAY(50);
   }
+}
+void println(String str, int delay_time) {
+  println(str);
+  DELAY(delay_time);
+}
+void println(String input) {
+  if (DEBUGGING)
+    print(input + "\n");
+}
+void print(String input) {
+  if (DEBUGGING)
+    Serial.print(input);
+}
+void DELAY(int delay_time) {
+  for (int i = 0; i < delay_time; i += 10) {
+    delay(10);
+    button_event();
+  }
+}
+bool door_close() {
+  if (digitalRead(DOOR_PIN) == LOW) {
+    return true; // door is closed
+  } else {
+    return false; // door is open
+  }
+}
+void Blink(int led_number, int delay_time, int blink_times) {
+  for (int i = 0; i < blink_times; i++) {
+    Blink(led_number, delay_time);
+  }
+}
+void Blink(int led_number, int delay_time) {
+  digitalWrite(led_number, HIGH);
+  delay(delay_time / 2);
+  digitalWrite(led_number, LOW);
+  delay(delay_time / 2);
+}
+void power_off() {
+  digitalWrite(GREEN_LED, LOW);
+  digitalWrite(RED_LED, LOW);
+  digitalWrite(BLUE_LED, LOW);
 }
