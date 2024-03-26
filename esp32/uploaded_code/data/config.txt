@@ -1,0 +1,4 @@
+version: 1
+new_wifi_name: ""
+new_wifi_name_password: ""
+authkey: "j717r31h"
