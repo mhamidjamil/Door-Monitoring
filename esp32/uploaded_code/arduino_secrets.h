@@ -5,6 +5,13 @@
 
 #define MY_SSID "Archer 73"
 #define MY_PASSWORD "Archer@73_102#"
+
+// #define MY_SSID "Revenant"
+// #define MY_PASSWORD "8765432a"
+
+// #define MY_SSID "Archer"
+// #define MY_PASSWORD "Password@!"
+
 #define MY_CHANNEL_ID 2201589
 #define THINGSPEAK_API "Q3TSTOM87EUBNOAE"
 
