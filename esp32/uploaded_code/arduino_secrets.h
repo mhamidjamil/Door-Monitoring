@@ -30,8 +30,8 @@
 
 #define ORANGEPI_RESPONSE_WAIT_TIME 10 // Seconds
 
-#define MY_ID
-#define MY_TEMPLATE_NAME
-#define MY_AUTH_TOKEN
+#define MY_ID "TMPL6duAc9aZv"
+#define MY_TEMPLATE_NAME "jamilhome"
+#define MY_AUTH_TOKEN "wqIcpCRd_RsfGdkOHdPEk9qfO1uM4wa4"
 
 // https://api.callmebot.com/whatsapp.php?phone=+923354888420&text=This+is+a+test&apikey=518125

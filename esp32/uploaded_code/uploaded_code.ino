@@ -1,4 +1,3 @@
-// Battery will charge when ac input is present
 #include "arduino_secrets.h"
 
 #define BLYNK_TEMPLATE_ID MY_ID
@@ -14,26 +13,21 @@ char pass[] = MY_PASSWORD;
 #include <BlynkSimpleEsp8266.h>
 #include <ESP8266WiFi.h>
 #include <Servo.h>
-
 #elif defined(ESP32)
 #include <BlynkSimpleEsp32.h>
-#include <ESP32Servo.h>
 #include <WiFi.h>
-
 #endif
 
 #include <WiFiClient.h>
 
-Servo servo;
+const int LED_PIN = 2; // Replace 2 with the pin number where your built-in LED is connected
 
 void setup() {
   Serial.begin(115200);
-  // You can also specify server:
-  // Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass, "blynk.cloud", 80);
-  // Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass, IPAddress(192,168,1,100), 8080);
 
 #if defined(ESP32)
   Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+  pinMode(LED_PIN, OUTPUT);
 #elif defined(ESP8266)
   WiFi.begin(ssid, pass);
   while (WiFi.status() != WL_CONNECTED) {
@@ -41,10 +35,19 @@ void setup() {
     Serial.print(".");
   }
   Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass, "blynk.cloud", 80);
-
+  pinMode(LED_PIN, OUTPUT);
 #endif
-
-  servo.attach(SERVO_PIN);
 }
 
-void loop() {}
+void loop() {
+  Blynk.run();
+}
+
+BLYNK_WRITE(V1) {
+  int ledValue = param.asInt();
+#if defined(ESP32)
+  digitalWrite(LED_PIN, ledValue ? HIGH : LOW);
+#elif defined(ESP8266)
+  analogWrite(LED_PIN, ledValue ? 1023 : 0); // For ESP8266, use analogWrite for LED dimming
+#endif
+}
