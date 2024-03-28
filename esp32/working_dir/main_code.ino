@@ -1,3 +1,5 @@
+// Main code for home
+
 #include "arduino_secrets.h"
 
 #define BLYNK_TEMPLATE_ID MY_ID
@@ -218,4 +220,18 @@ void inputManager(String command) { println("get this: " + command); }
 String removeNewline(String str) {
   str.replace("\n", " ");
   return str;
+}
+
+void createOwnNetwork() {
+  // Set up your own network
+  // Configure the SoftAP (Access Point)
+  const char *ap_ssid = SELF_SSID;
+  const char *ap_password = SELF_PASSWORD;
+
+  // Create the access point
+  WiFi.softAP(ap_ssid, ap_password);
+
+  Serial.print("AP IP address: ");
+  Serial.println(WiFi.softAPIP());
+  Serial.println("Own network created");
 }
