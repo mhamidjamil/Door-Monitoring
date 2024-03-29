@@ -29,6 +29,10 @@ unsigned int recheck_internet_connectivity = 300; // in seconds
 #include <BLEServer.h>
 #include <BLEUtils.h>
 
+// #include "c_blynk.h"
+// c_blynk blynk;
+// no need for blynk for this code as it work on api calls
+
 void BLE_inputManager(String input);
 
 unsigned int BLE_last_receive_time = 0;
