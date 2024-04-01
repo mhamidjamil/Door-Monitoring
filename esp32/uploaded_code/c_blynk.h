@@ -17,6 +17,7 @@ public:
   String updateBlynkState(int pin, int state, bool forceUpdate);
   String updateBlynkState(int pin, int state);
   int getPinState(int pin);
+  bool isDeviceConnected(int retries);
   bool isDeviceConnected();
 
   void print(String tempStr);
@@ -24,3 +25,5 @@ public:
 };
 
 #endif
+
+// https://sgp1.blynk.cloud/external/api/isHardwareConnected?token=wqIcpCRd_RsfGdkOHdPEk9qfO1uM4wa4

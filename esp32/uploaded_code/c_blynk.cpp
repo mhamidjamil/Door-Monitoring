@@ -73,6 +73,7 @@ int c_blynk::getPinState(int pin) {
       Serial.println(state);
       return state;
     } else {
+      Serial.println("http request: [" + apiUrl + "]");
       Serial.print("Error in API request. HTTP error code: ");
       Serial.println(httpCode);
     }
@@ -84,7 +85,11 @@ int c_blynk::getPinState(int pin) {
   return -1; // Return -1 if there was an error
 }
 
-bool c_blynk::isDeviceConnected() {
+bool c_blynk::isDeviceConnected() { return isDeviceConnected(3); }
+
+bool c_blynk::isDeviceConnected(int retries) {
+  if (retries <= 0)
+    return false;
   HTTPClient http;
 
   // Construct the API URL
@@ -92,6 +97,7 @@ bool c_blynk::isDeviceConnected() {
 
   // Send HTTP GET request
   http.setTimeout(5000);
+  bool request_status = false;
   http.begin(apiUrl);
   int httpCode = http.GET();
 
@@ -99,14 +105,18 @@ bool c_blynk::isDeviceConnected() {
   if (httpCode == HTTP_CODE_OK) {
     String response = http.getString();
     println("Connection status: " + response);
-    return response.equals("true"); // Convert response to boolean
+    request_status = response.equals("true"); // Convert response to boolean
   } else {
+    Serial.println("http request: [" + apiUrl + "]");
     Serial.print("Error in API request. HTTP error code: ");
     Serial.println(httpCode);
-    return false; // Return false in case of error
   }
 
   http.end();
+  if (!request_status)
+    return isDeviceConnected(retries--);
+  else
+    return request_status;
 }
 
 void c_blynk::println(String tempStr) { Serial.println(tempStr); }

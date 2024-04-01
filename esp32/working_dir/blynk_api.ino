@@ -12,9 +12,6 @@ c_blynk blynk;
 const char *ssid = MY_SSID;
 const char *password = MY_PASSWORD;
 
-String blynkServer = "https://sgp1.blynk.cloud/external/api/";
-String blynkParam = "token=" + String(MY_AUTH_TOKEN);
-
 const int LED_PIN = 2; // Replace with your LED pin number
 
 void setup() {

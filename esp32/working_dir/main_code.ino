@@ -22,6 +22,12 @@ char pass[] = MY_PASSWORD;
 
 #include <WiFiClient.h>
 
+#include "Cspiffs.h"
+#include "c_led.h"
+
+Cspiffs cspi;
+c_led led;
+
 unsigned int recheck_internet_connectivity = 300; // in seconds
 
 //$ BLE stuff:
@@ -95,7 +101,16 @@ void BLE_inputManager(String input) {
   }
 }
 
-const int LED_PIN = 2;
+const int led_pin = 2;
+const int white_led = 5;
+
+unsigned int door_last_open_on = 0;
+int close_door_in = 5; // in seconds
+bool door_state = false;
+int door_pin = led_pin;
+bool BYPASS_PREVIOUS_DOOR_STATE = false;
+unsigned int blinker_last_on = 0;
+int blinker_delay = 20;
 
 bool isConnectedToWifi = false;
 bool hasInternet = false;
@@ -104,7 +119,8 @@ void setup() {
   Serial.begin(115200);
   initBLE();
 
-  pinMode(LED_PIN, OUTPUT);
+  pinMode(led_pin, OUTPUT);
+  pinMode(white_led, OUTPUT);
 
   connectToWifiAndBlynk(); // Attempt initial connection
 }
@@ -129,11 +145,33 @@ void loop() {
     }
   }
 
+  if (Serial.available() > 0) {
+    String receivedString = Serial.readStringUntil('\n');
+    inputManager(receivedString);
+  }
+
   static unsigned long lastCheckTime = 0;
   unsigned long currentTime = millis() / 1000;
   if (currentTime - lastCheckTime >= recheck_internet_connectivity) {
     lastCheckTime = currentTime;
     checkInternetConnectivity();
+  }
+
+  manageBackGroundJobs();
+}
+
+void inputManager(String commandString) {
+  Serial.println("working on: " + commandString);
+  if (isIn(commandString, "led on")) {
+    led.led_on();
+  } else if (isIn(commandString, "led off")) {
+    led.led_off();
+  } else if (isIn(commandString, "led2 on")) {
+    led.led_on(white_led);
+  } else if (isIn(commandString, "led2 off")) {
+    led.led_off(white_led);
+  } else {
+    Serial.println("Nothing executed");
   }
 }
 
@@ -166,21 +204,33 @@ void checkInternetConnectivity() {
     Serial.println("Internet connected");
     hasInternet = true;
     client.stop();
-    digitalWrite(LED_PIN, HIGH); // Turn on LED if internet is not connected
+    // digitalWrite(led_pin, HIGH); // Turn on LED if internet is not connected
   } else {
     Serial.println("Internet not connected");
     hasInternet = false;
-    digitalWrite(LED_PIN, LOW); // Turn off LED if internet is connected
+    // digitalWrite(led_pin, LOW); // Turn off LED if internet is connected
   }
 }
 
 BLYNK_WRITE(V1) {
   int ledValue = param.asInt();
+  if (ledValue == 1 || ledValue == HIGH) {
+    door_last_open_on = getSeconds();
+    door_state = true;
+    println("Door state change, time stamp: " + door_last_open_on);
+  } else {
+    println("State: " + ledValue);
+  }
 #if defined(ESP32)
-  digitalWrite(LED_PIN, ledValue ? HIGH : LOW);
+  digitalWrite(led_pin, ledValue ? HIGH : LOW);
 #elif defined(ESP8266)
-  analogWrite(LED_PIN, ledValue ? 1023 : 0);
+  analogWrite(led_pin, ledValue ? 1023 : 0);
 #endif
+}
+
+BLYNK_WRITE(V5) {
+  int ledValue = param.asInt();
+  digitalWrite(white_led, ledValue ? HIGH : LOW);
 }
 
 void println(String str) { Serial.println(str); }
@@ -219,8 +269,6 @@ void initBLE() {
   Serial.println("Waiting for Bluetooth connection...");
 }
 
-void inputManager(String command) { println("get this: " + command); }
-
 String removeNewline(String str) {
   str.replace("\n", " ");
   return str;
@@ -239,3 +287,30 @@ void createOwnNetwork() {
   Serial.println(WiFi.softAPIP());
   Serial.println("Own network created");
 }
+
+void manageBackGroundJobs() {
+  closeDoorIfNot();
+  blinker();
+  delay(50);
+}
+
+void closeDoorIfNot() {
+  if (((getSeconds() - door_last_open_on) > close_door_in) &&
+      (door_state || BYPASS_PREVIOUS_DOOR_STATE)) {
+    println("Auto closing door");
+    digitalWrite(door_pin, LOW);
+    door_state = false;
+
+    // FIXME: will be updated when use servo motor
+  }
+}
+
+void blinker() {
+  if ((getSeconds() - blinker_last_on) > blinker_delay) {
+    led.change_state_for(white_led, 1, 500);
+    println("Blinker executed");
+    blinker_last_on = getSeconds();
+  }
+}
+
+unsigned int getSeconds() { return (millis() / 1000); }
