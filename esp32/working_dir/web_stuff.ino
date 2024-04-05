@@ -11,6 +11,11 @@ const char *password = MY_PASSWORD;
 
 WebServer server(420); // Create a WebServer object listening on port 420
 
+// Define variables to store the values
+String variable1 = "Default value 1";
+String variable2 = "Default value 2";
+String variable3 = "Default value 3";
+
 void setup() {
   Serial.begin(115200);
 
@@ -34,6 +39,7 @@ void setup() {
   // Set up routes
   server.on("/", HTTP_GET, handleRoot);
   server.on("/update", HTTP_POST, handleUpdate);
+  server.on("/getVariables", HTTP_GET, handleGetVariables);
 
   // Start server
   server.begin();
@@ -57,43 +63,49 @@ void handleRoot() {
 }
 
 // Handle update request
-// Handle update request
 void handleUpdate() {
   if (server.method() != HTTP_POST) {
     server.send(405, "text/plain", "Method Not Allowed");
     return;
   }
 
-  String jsonString = server.arg("plain");
-  Serial.println("Received JSON data:");
-  Serial.println(jsonString);
-
+  String json = server.arg("plain");
   DynamicJsonDocument requestData(200);
-  DeserializationError error = deserializeJson(requestData, jsonString);
+  DeserializationError error = deserializeJson(requestData, json);
 
   if (error) {
-    Serial.print("deserializeJson() failed: ");
-    Serial.println(error.c_str());
+    Serial.println("Failed to parse JSON");
     server.send(400, "text/plain", "Bad Request");
     return;
   }
 
-  // Extract variables from JSON data
-  String variable1 = requestData["variable1"].as<String>();
-  String variable2 = requestData["variable2"].as<String>();
-  String variable3 = requestData["variable3"].as<String>();
+  // Update the variables with the new values
+  variable1 = requestData["variable1"].as<String>();
+  variable2 = requestData["variable2"].as<String>();
+  variable3 = requestData["variable3"].as<String>();
 
-  // Print received data to Serial Monitor
-  Serial.println("Variables received:");
-  Serial.print("Variable 1: ");
-  Serial.println(variable1);
-  Serial.print("Variable 2: ");
-  Serial.println(variable2);
-  Serial.print("Variable 3: ");
-  Serial.println(variable3);
+  Serial.println("Variables updated:");
+  Serial.println("Variable 1: " + variable1);
+  Serial.println("Variable 2: " + variable2);
+  Serial.println("Variable 3: " + variable3);
 
-  // Send response to client
   server.send(200, "application/json",
               "{\"status\": \"success\", \"message\": \"Variables updated "
               "successfully\"}");
+}
+
+// Handle GET request to retrieve variable values
+void handleGetVariables() {
+  // Create a JSON object to store the variable values
+  StaticJsonDocument<200> responseData;
+  responseData["variable1"] = variable1;
+  responseData["variable2"] = variable2;
+  responseData["variable3"] = variable3;
+
+  // Serialize the JSON object to a string
+  String responseJson;
+  serializeJson(responseData, responseJson);
+
+  // Send the JSON response to the client
+  server.send(200, "application/json", responseJson);
 }
