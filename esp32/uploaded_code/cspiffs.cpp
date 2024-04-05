@@ -5,26 +5,7 @@ Cspiffs::Cspiffs() {
   println("\t\t\t###___Constructor___###");
 }
 
-void Cspiffs::readSPIFFS() {
-  String tempStr = "";
-  if (!SPIFFS.begin(true)) {
-    println("An Error has occurred while mounting SPIFFS");
-    return;
-  }
-  File file = SPIFFS.open(CONFIG_FILE);
-  if (!file) {
-    println("Failed to open file for reading");
-    return;
-  }
-  println("Reading file ...");
-  println("File Content:");
-  while (file.available()) {
-    char character = file.read();
-    tempStr += character; // Append the character to the string
-  }
-  println(tempStr);
-  file.close();
-}
+void Cspiffs::readSPIFFS() { println("@->>" + getSPIFFSData()); }
 
 String Cspiffs::getSPIFFSData() {
   String tempStr = "";
@@ -46,21 +27,22 @@ String Cspiffs::getSPIFFSData() {
 }
 
 String Cspiffs::getCompleteString(String str, String target) {
-  if (str.length() < 1)
-    return "";
+  //" #setting <ultra sound alerts 0> <display 1>" , "ultra"
+  // return "ultra sound alerts 0"
   String tempStr = "";
   int i = str.indexOf(target);
   if (i == -1) {
-    println("String is empty" + str);
+    println("String is empty" + str, SPI_DEBUGGING);
     return tempStr;
-  } else if (str.length() <= 20) { // to avoid spiffs on terminal
-    println("@--> Working on : " + str + " finding : " + target);
+  } else if (str.length() <= 50) { // to avoid spiffs on terminal
+    println("@--> Working on: " + str + " finding: " + target);
   }
   for (; i < str.length(); i++) {
     if ((str[i] >= '0' && str[i] <= '9') || (str[i] >= 'a' && str[i] <= 'z') ||
         (str[i] >= 'A' && str[i] <= 'Z') || (str[i] == ' ') ||
         (str[i] == '.') && (str[i] != '>') && (str[i] != '\n') ||
-        (str[i] == ':') || (str[i] == '=') || (str[i] == '_'))
+        (str[i] == ':') || (str[i] == '=') || (str[i] == '_') ||
+        (str[i] == '"'))
       tempStr += str[i];
     else {
       println("Returning (complete string) 1: " + tempStr, SPI_DEBUGGING);
@@ -77,22 +59,28 @@ String Cspiffs::getFileVariableValue(String varName) {
 
 String Cspiffs::getFileVariableValue(String varName, bool createNew) {
   String targetLine = getCompleteString(getSPIFFSData(), varName);
-  if (targetLine.length() < 1)
-    return "";
+
   println("Trying to fetch data from line : " + targetLine, SPI_DEBUGGING);
   if (targetLine.indexOf(varName) == -1 && !createNew) {
     println("Variable not found in file returning -1");
     return "-1";
   } else if (targetLine.indexOf(varName) == -1 && createNew) {
     println("Variable not found in file creating new & returning 0");
-    updateSPIFFS(varName, "0");
+    updateSPIFFS(varName, "0", createNew);
     return "0";
   }
   String targetValue = targetLine.substring(varName.length(), -1);
-  String variableValue = fetchNumber(targetValue, '.');
-  println("Returning value of {" + varName + "} : " + variableValue,
-          SPI_DEBUGGING);
-  return variableValue;
+  int firstQuote = targetLine.indexOf('"');
+  int secondQuote = targetLine.indexOf('"', firstQuote + 1);
+
+  if (firstQuote != -1 && secondQuote != -1) {
+    String quote_string =
+        "\"" + targetLine.substring(firstQuote + 1, secondQuote) + "\"";
+    return quote_string;
+  } else {
+    String variableValue = fetchNumber(targetValue, '.');
+    return variableValue;
+  }
 }
 
 void Cspiffs::updateSPIFFS(String variableName, String newValue) {
@@ -123,7 +111,7 @@ void Cspiffs::updateSPIFFS(String variableName, String newValue,
   while (file.available()) {
     String line = file.readStringUntil('\n');
     if (line.indexOf(variableName) != -1) {
-      line.replace(previousValue, newValue);
+      line = variableName + ": " + newValue;
       valueReplaced = true;
     }
     updatedContent += line + "\n";
@@ -144,7 +132,7 @@ void Cspiffs::updateSPIFFS(String variableName, String newValue,
   if (!valueReplaced) {
     println("Variable not found in file");
     if (createIfNotExists) {
-      println(" creating new variable");
+      println("\t@Creating new variable");
       updatedContent += ("\n" + variableName + ": " + newValue);
     }
   }
@@ -207,11 +195,11 @@ void Cspiffs::enable_SPI_debugging() { SPI_DEBUGGING = true; }
 
 void Cspiffs::disable_SPI_debugging() { SPI_DEBUGGING = false; }
 
-void Cspiffs::println(String tempStr) { Serial.println(tempStr); }
+void Cspiffs::println(String tempStr) { Serial.println("@CSPI-> " + tempStr); }
 
 void Cspiffs::println(String tempStr, bool condition) {
-  if(condition)
-    Serial.println(tempStr);
+  if (condition)
+    Serial.println("@CSPI-> " + tempStr);
   // TODO: try to implement logger logic in place of void()
 }
 

@@ -9,7 +9,7 @@
 class Cspiffs {
 
 private:
-  bool SPI_DEBUGGING = false;
+  bool SPI_DEBUGGING = true;
 
 public:
   Cspiffs();
@@ -40,7 +40,7 @@ public:
 
   String getVariableName(String str, String startFrom);
   /* will return variable name from string
-    it's main purpose is to fetch correct variabel name as defined in rules
+    it's main purpose is to fetch correct variable name as defined in rules
   */
 
   String getFirstLine(String str);

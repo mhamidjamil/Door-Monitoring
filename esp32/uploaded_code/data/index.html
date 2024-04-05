@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Variables</title>
+</head>
+
+<body>
+    <h1>Edit Variables</h1>
+
+    <form id="variableForm">
+        <label for="variable1">Variable 1:</label>
+        <input type="text" id="variable1" name="variable1" value="Value 1"><br><br>
+
+        <label for="variable2">Variable 2:</label>
+        <input type="text" id="variable2" name="variable2" value="Value 2"><br><br>
+
+        <label for="variable3">Variable 3:</label>
+        <input type="text" id="variable3" name="variable3" value="Value 3"><br><br>
+
+        <button type="button" onclick="updateVariables()">Update</button>
+    </form>
+
+    <script>
+        function updateVariables() {
+            // Get the values from the form fields
+            var variable1 = document.getElementById("variable1").value;
+            var variable2 = document.getElementById("variable2").value;
+            var variable3 = document.getElementById("variable3").value;
+
+            // Prepare the data to send to the server
+            var data = {
+                variable1: variable1,
+                variable2: variable2,
+                variable3: variable3
+            };
+
+            // Send the data to the server using fetch API
+            fetch('/update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Data received:', data);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+    </script>
+</body>
+
+</html>

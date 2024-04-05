@@ -109,8 +109,11 @@ int close_door_in = 5; // in seconds
 bool door_state = false;
 int door_pin = led_pin;
 bool BYPASS_PREVIOUS_DOOR_STATE = false;
+bool ALLOW_DOOR_OPENING = true;
 unsigned int blinker_last_on = 0;
-int blinker_delay = 20;
+int blinker_delay = 15;
+int blinker_for = 500;
+bool TRY_FILE_WIFI_CREDS = false;
 
 bool isConnectedToWifi = false;
 bool hasInternet = false;
@@ -122,6 +125,7 @@ void setup() {
   pinMode(led_pin, OUTPUT);
   pinMode(white_led, OUTPUT);
 
+  syncSPIFFS();
   connectToWifiAndBlynk(); // Attempt initial connection
 }
 
@@ -160,16 +164,31 @@ void loop() {
   manageBackGroundJobs();
 }
 
-void inputManager(String commandString) {
-  Serial.println("working on: " + commandString);
-  if (isIn(commandString, "led on")) {
+void inputManager(String command) {
+  Serial.println("working on: " + command);
+  if (isIn(command, "led on")) {
     led.led_on();
-  } else if (isIn(commandString, "led off")) {
+  } else if (isIn(command, "led off")) {
     led.led_off();
-  } else if (isIn(commandString, "led2 on")) {
+  } else if (isIn(command, "led2 on")) {
     led.led_on(white_led);
-  } else if (isIn(commandString, "led2 off")) {
+  } else if (isIn(command, "led2 off")) {
     led.led_off(white_led);
+  } else if (isIn(command, "value of:")) {
+    String varName =
+        cspi.getVariableName(command.substring(command.indexOf(":")), ":");
+    String targetValue = cspi.getFileVariableValue(varName);
+    println("\t\tValue of: " + varName + " is: [" + targetValue + "]");
+    if (command.indexOf(" to ") != -1) {
+      String newValue = command.substring(command.indexOf(" to ") + 4, -1);
+      println("Updating value to: [" + newValue + "]");
+      cspi.updateSPIFFS(varName, newValue);
+    }
+    syncSPIFFS();
+  } else if (isIn(command, "readSPIFFS")) {
+    println("Reading SPI data\n\n");
+    cspi.readSPIFFS();
+    println("<- END \n\n");
   } else {
     Serial.println("Nothing executed");
   }
@@ -178,11 +197,37 @@ void inputManager(String commandString) {
 void connectToWifiAndBlynk() {
   Serial.println("Connecting to Wi-Fi...");
 
-  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+  bool connected_with_wifi = false;
+  if (TRY_FILE_WIFI_CREDS) {
+    String ssidString = cspi.getFileVariableValue("new_wifi_name");
+    char file_ssid[ssidString.length() + 1]; // Add 1 for null terminator
+    ssidString.toCharArray(file_ssid, sizeof(file_ssid));
+
+    String passwordString = cspi.getFileVariableValue("new_wifi_password");
+    char
+        file_password[passwordString.length() + 1]; // Add 1 for null terminator
+    passwordString.toCharArray(file_password, sizeof(file_password));
+    println("Connecting to file ssid:" + String(file_ssid) +
+            " password: " + String(file_password));
+    connected_with_wifi = validateWIFICreds(file_ssid, file_password);
+    if (connected_with_wifi)
+      Blynk.begin(BLYNK_AUTH_TOKEN, file_ssid, file_password);
+  }
+
+  if (!connected_with_wifi) {
+    println("Connecting to ssid: " + String(ssid));
+    Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+  }
+
+  println("Trying to connect to blynk");
   if (Blynk.connect()) {
     Serial.println("Connected to Blynk");
   } else {
     Serial.println("Failed to connect to Blynk");
+    if (TRY_FILE_WIFI_CREDS) {
+      TRY_FILE_WIFI_CREDS = false;
+      connectToWifiAndBlynk(); // try again
+    }
   }
 }
 
@@ -208,6 +253,7 @@ void checkInternetConnectivity() {
   } else {
     Serial.println("Internet not connected");
     hasInternet = false;
+    client.stop();
     // digitalWrite(led_pin, LOW); // Turn off LED if internet is connected
   }
 }
@@ -220,6 +266,11 @@ BLYNK_WRITE(V1) {
     println("Door state change, time stamp: " + door_last_open_on);
   } else {
     println("State: " + ledValue);
+  }
+  if (!ALLOW_DOOR_OPENING) {
+    println("Door functionality is disabled please run "
+            "[value of:ALLOW_DOOR_OPENING to 1] to enable");
+    return;
   }
 #if defined(ESP32)
   digitalWrite(led_pin, ledValue ? HIGH : LOW);
@@ -306,11 +357,58 @@ void closeDoorIfNot() {
 }
 
 void blinker() {
-  if ((getSeconds() - blinker_last_on) > blinker_delay) {
-    led.change_state_for(white_led, 1, 500);
-    println("Blinker executed");
+  if ((getSeconds() - blinker_last_on) > blinker_delay && blinker_delay != -1) {
+    led.change_state_for(white_led, 1, blinker_for);
+    // println("Blinker executed");
     blinker_last_on = getSeconds();
   }
 }
 
 unsigned int getSeconds() { return (millis() / 1000); }
+
+void syncSPIFFS() {
+  close_door_in = cspi.getFileVariableValue("close_door_in", true).toInt();
+  BYPASS_PREVIOUS_DOOR_STATE =
+      cspi.getFileVariableValue("BYPASS_PREVIOUS_DOOR_STATE", true).toInt() == 1
+          ? true
+          : false;
+  blinker_delay = cspi.getFileVariableValue("blinker_delay", true).toInt();
+  blinker_for = cspi.getFileVariableValue("blinker_for", true).toInt();
+  ALLOW_DOOR_OPENING =
+      cspi.getFileVariableValue("ALLOW_DOOR_OPENING", true).toInt() == 1
+          ? true
+          : false;
+  TRY_FILE_WIFI_CREDS =
+      cspi.getFileVariableValue("TRY_FILE_WIFI_CREDS", true).toInt() == 1
+          ? true
+          : false;
+  recheck_internet_connectivity =
+      cspi.getFileVariableValue("recheck_internet_connectivity", true).toInt();
+}
+
+void log(String msg) {
+  print("\n\t@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n\t");
+  println(msg);
+  println("\n\t@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+}
+
+bool validateWIFICreds(char ssid[], char pass[]) {
+  println("checking if wifi is connectable...");
+  WiFi.begin(ssid, pass);
+  int i = 0;
+  while (WiFi.status() != WL_CONNECTED) {
+    if (i > 10) {
+      println("\n!!!---Timeout: Unable to connect to WiFi---!!!");
+      return false;
+      break;
+    }
+    delay(500);
+    print(".");
+    i++;
+  }
+  if (i < 10) {
+    println("Connected.\n Disconnecting...");
+    WiFi.disconnect(true);
+    return true;
+  }
+}
