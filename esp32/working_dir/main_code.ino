@@ -512,36 +512,61 @@ void handleUpdate() {
   }
 
   // Update the variables with the new values
-  ALLOW_DOOR_OPENING = requestData["ALLOW_DOOR_OPENING"].as<String>() == "1";
-  close_door_in = requestData["close_door_in"].as<String>().toInt();
-  blinker_delay = requestData["blinker_delay"].as<String>().toInt();
-  blinker_for = requestData["blinker_for"].as<String>().toInt();
-  TRY_FILE_WIFI_CREDS = requestData["TRY_FILE_WIFI_CREDS"].as<String>() == "1";
-  recheck_internet_connectivity_in =
-      requestData["recheck_internet_connectivity_in"].as<String>().toInt();
-  BYPASS_PREVIOUS_DOOR_STATE =
+  bool new_ALLOW_DOOR_OPENING =
+      requestData["ALLOW_DOOR_OPENING"].as<String>() == "1";
+  bool new_TRY_FILE_WIFI_CREDS =
+      requestData["TRY_FILE_WIFI_CREDS"].as<String>() == "1";
+  bool new_BYPASS_PREVIOUS_DOOR_STATE =
       requestData["BYPASS_PREVIOUS_DOOR_STATE"].as<String>() == "1";
-  file_wifi_ssid = requestData["file_wifi_ssid"].as<String>();
-  file_wifi_pass = requestData["file_wifi_pass"].as<String>();
+  int new_close_door_in = requestData["close_door_in"].as<String>().toInt();
+  int new_blinker_delay = requestData["blinker_delay"].as<String>().toInt();
+  int new_blinker_for = requestData["blinker_for"].as<String>().toInt();
+  int new_recheck_internet_connectivity_in =
+      requestData["recheck_internet_connectivity_in"].as<String>().toInt();
+  String new_file_wifi_ssid = requestData["file_wifi_ssid"].as<String>();
+  String new_file_wifi_pass = requestData["file_wifi_pass"].as<String>();
 
   Serial.println("Variables updated:");
-  Serial.println("ALLOW_DOOR_OPENING : " +
-                 String(ALLOW_DOOR_OPENING ? "true" : "false"));
-  Serial.println("close_door_in: " + String(close_door_in));
-  Serial.println("blinker_delay: " + String(blinker_delay));
-  Serial.println("blinker_for: " + String(blinker_for));
-  Serial.println("TRY_FILE_WIFI_CREDS: " +
-                 String(TRY_FILE_WIFI_CREDS ? "true" : "false"));
-  Serial.println("recheck_internet_connectivity_in: " +
-                 String(recheck_internet_connectivity_in));
-  Serial.println("BYPASS_PREVIOUS_DOOR_STATE: " +
-                 String(BYPASS_PREVIOUS_DOOR_STATE ? "true" : "false"));
-  Serial.println("file_wifi_ssid: " + file_wifi_ssid);
-  Serial.println("Variable 2: " + file_wifi_pass);
+  updateAndNotify("ALLOW_DOOR_OPENING", new_ALLOW_DOOR_OPENING,
+                  ALLOW_DOOR_OPENING);
+  updateAndNotify("TRY_FILE_WIFI_CREDS", new_TRY_FILE_WIFI_CREDS,
+                  TRY_FILE_WIFI_CREDS);
+  updateAndNotify("BYPASS_PREVIOUS_DOOR_STATE", new_BYPASS_PREVIOUS_DOOR_STATE,
+                  BYPASS_PREVIOUS_DOOR_STATE);
+  updateAndNotify("close_door_in", new_close_door_in, close_door_in);
+  updateAndNotify("blinker_delay", new_blinker_delay, blinker_delay);
+  updateAndNotify("blinker_for", new_blinker_for, blinker_for);
+  updateAndNotify("recheck_internet_connectivity_in",
+                  new_recheck_internet_connectivity_in,
+                  recheck_internet_connectivity_in);
+  updateAndNotify("file_wifi_ssid", new_file_wifi_ssid, file_wifi_ssid);
+  updateAndNotify("file_wifi_pass", new_file_wifi_pass, file_wifi_pass);
+  syncSPIFFS();
 
   server.send(200, "application/json",
               "{\"status\": \"success\", \"message\": \"Variables updated "
               "successfully\"}");
+}
+
+void updateAndNotify(String varName, bool newValue, bool oldValue) {
+  if (oldValue != newValue) {
+    println("Update new value of: " + varName);
+    cspi.updateSPIFFS(varName, String(newValue ? "1" : "0"));
+  }
+}
+
+void updateAndNotify(String varName, int newValue, int oldValue) {
+  if (oldValue != newValue) {
+    println("Update new value of: " + varName);
+    cspi.updateSPIFFS(varName, String(newValue));
+  }
+}
+
+void updateAndNotify(String varName, String newValue, String oldValue) {
+  if (oldValue != newValue) {
+    println("Update new value of: " + varName);
+    cspi.updateSPIFFS(varName, newValue);
+  }
 }
 
 // Handle GET request to retrieve variable values
