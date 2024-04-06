@@ -8,7 +8,7 @@
 class c_led {
 
 private:
-  int led_pin = 2;
+  int builtin_led = 2;
 
 public:
   c_led();

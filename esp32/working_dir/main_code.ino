@@ -106,13 +106,19 @@ void BLE_inputManager(String input) {
   }
 }
 
-const int led_pin = 2;
-const int white_led = 5;
+const int builtin_led = 2;
+const int white_bulb = 5;
+#define WHITE_LED 4
+#define BLUE_LED 16
+#define YELLOW_LED 17
+#define RED_LED 18
+
+#define INPUT_BUTTON 13
 
 unsigned int door_last_open_on = 0;
 int close_door_in = 5; // in seconds
 bool DOOR_STATE = false;
-int door_pin = led_pin;
+int door_pin = builtin_led;
 bool BYPASS_PREVIOUS_DOOR_STATE = false;
 bool ALLOW_DOOR_OPENING = true;
 unsigned int blinker_last_on = 0;
@@ -129,8 +135,17 @@ void setup() {
   Serial.begin(115200);
   initBLE();
 
-  pinMode(led_pin, OUTPUT);
-  pinMode(white_led, OUTPUT);
+  pinMode(builtin_led, OUTPUT);
+  pinMode(white_bulb, OUTPUT);
+
+  pinMode(WHITE_LED, OUTPUT);
+  pinMode(BLUE_LED, OUTPUT);
+  pinMode(YELLOW_LED, OUTPUT);
+  pinMode(RED_LED, OUTPUT);
+
+  pinMode(INPUT_BUTTON, INPUT);
+
+  led_test();
 
   if (!SPIFFS.begin(true)) {
     log("Failed to mount file system");
@@ -193,9 +208,9 @@ void inputManager(String command) {
   } else if (isIn(command, "led off")) {
     led.led_off();
   } else if (isIn(command, "led2 on")) {
-    led.led_on(white_led);
+    led.led_on(white_bulb);
   } else if (isIn(command, "led2 off")) {
-    led.led_off(white_led);
+    led.led_off(white_bulb);
   } else if (isIn(command, "value of:")) {
     String varName =
         cspi.getVariableName(command.substring(command.indexOf(":")), ":");
@@ -211,6 +226,12 @@ void inputManager(String command) {
     println("Reading SPI data\n\n");
     cspi.readSPIFFS();
     println("<- END \n\n");
+  } else if (isIn(command, "ip") || isIn(command, "IP") ||
+             isIn(command, "Ip")) {
+    IPAddress ipv4 = WiFi.localIP();
+    String ip = ipv4.toString();
+    println(ip);
+    delay(2000);
   } else {
     Serial.println("Nothing executed");
   }
@@ -236,7 +257,7 @@ void connectToWifiAndBlynk() {
       Blynk.begin(BLYNK_AUTH_TOKEN, file_ssid, file_password);
   }
 
-  if (!connected_with_wifi && validateWIFICreds(ssid, pass)) {
+  if (!connected_with_wifi && validateWIFICreds(ssid, pass, 20)) {
     println("Connecting to ssid: " + String(ssid));
     Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
   }
@@ -272,39 +293,50 @@ void checkInternetConnectivity() {
     Serial.println("Internet connected");
     IS_CONNECTED_TO_INTERNET = true;
     client.stop();
-    // digitalWrite(led_pin, HIGH); // Turn on LED if internet is not connected
+    // digitalWrite(builtin_led, HIGH); // Turn on LED if internet is not
+    // connected
   } else {
     Serial.println("Internet not connected");
     IS_CONNECTED_TO_INTERNET = false;
     client.stop();
-    // digitalWrite(led_pin, LOW); // Turn off LED if internet is connected
+    // digitalWrite(builtin_led, LOW); // Turn off LED if internet is connected
   }
 }
 
 BLYNK_WRITE(V1) {
   int ledValue = param.asInt();
-  if (ledValue == 1 || ledValue == HIGH) {
-    door_last_open_on = getSeconds();
-    DOOR_STATE = true;
-    println("Door state change, time stamp: " + door_last_open_on);
+  if ((ledValue != 0) && ALLOW_DOOR_OPENING) {
+    doorState(true);
+    println("Door state changed, blynk input value: " + String(ledValue));
+    delay(1000);
   } else {
-    println("State: " + ledValue);
+    println("Closing by blink, State: " + String(ledValue));
   }
-  if (!ALLOW_DOOR_OPENING) {
-    println("Door functionality is disabled please run "
-            "[value of:ALLOW_DOOR_OPENING to 1] to enable");
-    return;
-  }
-#if defined(ESP32)
-  digitalWrite(led_pin, ledValue ? HIGH : LOW);
-#elif defined(ESP8266)
-  analogWrite(led_pin, ledValue ? 1023 : 0);
-#endif
+}
+
+BLYNK_WRITE(V2) {
+  int ledValue = param.asInt();
+  digitalWrite(WHITE_LED, ledValue ? HIGH : LOW);
+}
+
+BLYNK_WRITE(V3) {
+  int ledValue = param.asInt();
+  digitalWrite(BLUE_LED, ledValue ? HIGH : LOW);
+}
+
+BLYNK_WRITE(V4) {
+  int ledValue = param.asInt();
+  digitalWrite(YELLOW_LED, ledValue ? HIGH : LOW);
 }
 
 BLYNK_WRITE(V5) {
   int ledValue = param.asInt();
-  digitalWrite(white_led, ledValue ? HIGH : LOW);
+  digitalWrite(white_bulb, ledValue ? HIGH : LOW);
+}
+
+BLYNK_WRITE(V6) {
+  int ledValue = param.asInt();
+  digitalWrite(RED_LED, ledValue ? HIGH : LOW);
 }
 
 void println(String str) { Serial.println(str); }
@@ -365,6 +397,8 @@ void createOwnNetwork() {
 void manageBackGroundJobs() {
   closeDoorIfNot();
   blinker();
+  if (digitalRead(INPUT_BUTTON) == HIGH)
+    alterDoorState();
   delay(50);
 }
 
@@ -372,16 +406,22 @@ void closeDoorIfNot() {
   if (((getSeconds() - door_last_open_on) > close_door_in) &&
       (DOOR_STATE || BYPASS_PREVIOUS_DOOR_STATE)) {
     println("Auto closing door");
-    digitalWrite(door_pin, LOW);
+    // digitalWrite(door_pin, LOW);
+    doorState(false);
     DOOR_STATE = false;
 
     // FIXME: will be updated when use servo motor
   }
+  //  else {
+  //   println("Door state: " + String(DOOR_STATE ? "true" : "false") +
+  //           " time difference:" + String(getSeconds() - door_last_open_on));
+  //   delay(700);
+  // }
 }
 
 void blinker() {
   if ((getSeconds() - blinker_last_on) > blinker_delay && blinker_delay != -1) {
-    led.change_state_for(white_led, 1, blinker_for);
+    led.change_state_for(white_bulb, 1, blinker_for);
     // println("Blinker executed");
     blinker_last_on = getSeconds();
   }
@@ -417,11 +457,15 @@ void log(String msg) {
 }
 
 bool validateWIFICreds(char ssid[], char pass[]) {
+  return validateWIFICreds(ssid, pass, 10);
+}
+
+bool validateWIFICreds(char ssid[], char pass[], int timeOut) {
   println("checking if wifi is connectable...");
   WiFi.begin(ssid, pass);
   int i = 0;
   while (WiFi.status() != WL_CONNECTED) {
-    if (i > 10) {
+    if (i > timeOut) {
       println("\n!!!---Timeout: Unable to connect to WiFi---!!!");
       return false;
       break;
@@ -430,7 +474,7 @@ bool validateWIFICreds(char ssid[], char pass[]) {
     print(".");
     i++;
   }
-  if (i < 10) {
+  if (i < timeOut) {
     println("Connected.\n Disconnecting...");
     WiFi.disconnect(true);
     return true;
@@ -524,3 +568,47 @@ void handleGetVariables() {
   server.send(200, "application/json", responseJson);
 }
 //~ server base functions end
+
+void led_test() {
+  digitalWrite(WHITE_LED, HIGH);
+  delay(500);
+  digitalWrite(WHITE_LED, LOW);
+  delay(300);
+
+  digitalWrite(BLUE_LED, HIGH);
+  delay(500);
+  digitalWrite(BLUE_LED, LOW);
+  delay(300);
+
+  digitalWrite(YELLOW_LED, HIGH);
+  delay(500);
+  digitalWrite(YELLOW_LED, LOW);
+  delay(300);
+
+  digitalWrite(RED_LED, HIGH);
+  delay(500);
+  digitalWrite(RED_LED, LOW);
+  delay(300);
+}
+
+void alterDoorState() {
+  println("Altering door state...\n New state: " +
+          String(!DOOR_STATE ? "Open" : "Close"));
+  DOOR_STATE = !DOOR_STATE;
+  doorState(DOOR_STATE);
+  delay(1500);
+}
+
+void doorState(bool state) {
+  if (!ALLOW_DOOR_OPENING) {
+    println("Door functionality is disabled please run "
+            "[value of:ALLOW_DOOR_OPENING to 1] to enable");
+    return;
+  }
+  if (!DOOR_STATE)
+    DOOR_STATE = true;
+  if (state)
+    door_last_open_on = getSeconds();
+  println("Door state: Door state: " + String(state ? "Open" : "Close"));
+  digitalWrite(YELLOW_LED, state);
+}
