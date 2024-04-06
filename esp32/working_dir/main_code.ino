@@ -407,8 +407,8 @@ void closeDoorIfNot() {
       (DOOR_STATE || BYPASS_PREVIOUS_DOOR_STATE)) {
     println("Auto closing door");
     // digitalWrite(door_pin, LOW);
-    doorState(false);
     DOOR_STATE = false;
+    doorState(DOOR_STATE);
 
     // FIXME: will be updated when use servo motor
   }
@@ -605,8 +605,8 @@ void doorState(bool state) {
             "[value of:ALLOW_DOOR_OPENING to 1] to enable");
     return;
   }
-  if (!DOOR_STATE)
-    DOOR_STATE = true;
+  if (DOOR_STATE != state)
+    DOOR_STATE = state;
   if (state)
     door_last_open_on = getSeconds();
   println("Door state: Door state: " + String(state ? "Open" : "Close"));
