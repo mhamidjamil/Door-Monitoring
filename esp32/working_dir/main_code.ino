@@ -20,6 +20,9 @@ char pass[] = MY_PASSWORD;
 #include <WiFi.h>
 #endif
 
+#include <ArduinoJson.h>
+#include <WebServer.h>
+
 #include <WiFiClient.h>
 
 #include "Cspiffs.h"
@@ -28,7 +31,7 @@ char pass[] = MY_PASSWORD;
 Cspiffs cspi;
 c_led led;
 
-unsigned int recheck_internet_connectivity = 300; // in seconds
+unsigned int recheck_internet_connectivity_in = 300; // in seconds
 
 //$ BLE stuff:
 #include <BLEDevice.h>
@@ -50,6 +53,8 @@ BLECharacteristic *pCharacteristic = NULL;
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
 std::string receivedData = "";
+String file_wifi_ssid = "";
+String file_wifi_pass = "";
 
 class MyServerCallbacks : public BLEServerCallbacks {
   void onConnect(BLEServer *pServer) { deviceConnected = true; }
@@ -106,7 +111,7 @@ const int white_led = 5;
 
 unsigned int door_last_open_on = 0;
 int close_door_in = 5; // in seconds
-bool door_state = false;
+bool DOOR_STATE = false;
 int door_pin = led_pin;
 bool BYPASS_PREVIOUS_DOOR_STATE = false;
 bool ALLOW_DOOR_OPENING = true;
@@ -115,8 +120,10 @@ int blinker_delay = 15;
 int blinker_for = 500;
 bool TRY_FILE_WIFI_CREDS = false;
 
-bool isConnectedToWifi = false;
-bool hasInternet = false;
+bool IS_CONNECTED_TO_WIFI = false;
+bool IS_CONNECTED_TO_INTERNET = false;
+
+WebServer server(80);
 
 void setup() {
   Serial.begin(115200);
@@ -125,12 +132,27 @@ void setup() {
   pinMode(led_pin, OUTPUT);
   pinMode(white_led, OUTPUT);
 
+  if (!SPIFFS.begin(true)) {
+    log("Failed to mount file system");
+  }
+
   syncSPIFFS();
   connectToWifiAndBlynk(); // Attempt initial connection
+
+  // Set up routes
+  server.on("/", HTTP_GET, handleRoot);
+  server.on("/update", HTTP_POST, handleUpdate);
+  server.on("/getVariables", HTTP_GET, handleGetVariables);
+
+  // Start server
+  server.begin();
+  Serial.println("Server started");
 }
 
 void loop() {
   Blynk.run();
+
+  server.handleClient(); // Handle client requests
 
   if (BLE_Input != "")
     BLE_inputManager("_nil_");
@@ -156,7 +178,7 @@ void loop() {
 
   static unsigned long lastCheckTime = 0;
   unsigned long currentTime = millis() / 1000;
-  if (currentTime - lastCheckTime >= recheck_internet_connectivity) {
+  if (currentTime - lastCheckTime >= recheck_internet_connectivity_in) {
     lastCheckTime = currentTime;
     checkInternetConnectivity();
   }
@@ -199,14 +221,14 @@ void connectToWifiAndBlynk() {
 
   bool connected_with_wifi = false;
   if (TRY_FILE_WIFI_CREDS) {
-    String ssidString = cspi.getFileVariableValue("new_wifi_name");
-    char file_ssid[ssidString.length() + 1]; // Add 1 for null terminator
-    ssidString.toCharArray(file_ssid, sizeof(file_ssid));
+    file_wifi_ssid = cspi.getFileVariableValue("new_wifi_name");
+    char file_ssid[file_wifi_ssid.length() + 1]; // Add 1 for null terminator
+    file_wifi_ssid.toCharArray(file_ssid, sizeof(file_ssid));
 
-    String passwordString = cspi.getFileVariableValue("new_wifi_password");
+    file_wifi_pass = cspi.getFileVariableValue("new_wifi_password");
     char
-        file_password[passwordString.length() + 1]; // Add 1 for null terminator
-    passwordString.toCharArray(file_password, sizeof(file_password));
+        file_password[file_wifi_pass.length() + 1]; // Add 1 for null terminator
+    file_wifi_pass.toCharArray(file_password, sizeof(file_password));
     println("Connecting to file ssid:" + String(file_ssid) +
             " password: " + String(file_password));
     connected_with_wifi = validateWIFICreds(file_ssid, file_password);
@@ -214,7 +236,7 @@ void connectToWifiAndBlynk() {
       Blynk.begin(BLYNK_AUTH_TOKEN, file_ssid, file_password);
   }
 
-  if (!connected_with_wifi) {
+  if (!connected_with_wifi && validateWIFICreds(ssid, pass)) {
     println("Connecting to ssid: " + String(ssid));
     Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
   }
@@ -222,6 +244,7 @@ void connectToWifiAndBlynk() {
   println("Trying to connect to blynk");
   if (Blynk.connect()) {
     Serial.println("Connected to Blynk");
+    Serial.println(WiFi.localIP());
   } else {
     Serial.println("Failed to connect to Blynk");
     if (TRY_FILE_WIFI_CREDS) {
@@ -247,12 +270,12 @@ void checkInternetConnectivity() {
 
   if (isConnected) {
     Serial.println("Internet connected");
-    hasInternet = true;
+    IS_CONNECTED_TO_INTERNET = true;
     client.stop();
     // digitalWrite(led_pin, HIGH); // Turn on LED if internet is not connected
   } else {
     Serial.println("Internet not connected");
-    hasInternet = false;
+    IS_CONNECTED_TO_INTERNET = false;
     client.stop();
     // digitalWrite(led_pin, LOW); // Turn off LED if internet is connected
   }
@@ -262,7 +285,7 @@ BLYNK_WRITE(V1) {
   int ledValue = param.asInt();
   if (ledValue == 1 || ledValue == HIGH) {
     door_last_open_on = getSeconds();
-    door_state = true;
+    DOOR_STATE = true;
     println("Door state change, time stamp: " + door_last_open_on);
   } else {
     println("State: " + ledValue);
@@ -347,10 +370,10 @@ void manageBackGroundJobs() {
 
 void closeDoorIfNot() {
   if (((getSeconds() - door_last_open_on) > close_door_in) &&
-      (door_state || BYPASS_PREVIOUS_DOOR_STATE)) {
+      (DOOR_STATE || BYPASS_PREVIOUS_DOOR_STATE)) {
     println("Auto closing door");
     digitalWrite(door_pin, LOW);
-    door_state = false;
+    DOOR_STATE = false;
 
     // FIXME: will be updated when use servo motor
   }
@@ -382,8 +405,9 @@ void syncSPIFFS() {
       cspi.getFileVariableValue("TRY_FILE_WIFI_CREDS", true).toInt() == 1
           ? true
           : false;
-  recheck_internet_connectivity =
-      cspi.getFileVariableValue("recheck_internet_connectivity", true).toInt();
+  recheck_internet_connectivity_in =
+      cspi.getFileVariableValue("recheck_internet_connectivity_in", true)
+          .toInt();
 }
 
 void log(String msg) {
@@ -412,3 +436,91 @@ bool validateWIFICreds(char ssid[], char pass[]) {
     return true;
   }
 }
+
+//~ server base functions started
+// Handle root page request
+void handleRoot() {
+  File file = SPIFFS.open("/index.html", "r");
+  if (!file) {
+    Serial.println("Failed to open file for reading");
+    return;
+  }
+
+  server.streamFile(file, "text/html"); // Stream HTML file to client
+  file.close();
+}
+
+// Handle update request
+void handleUpdate() {
+  if (server.method() != HTTP_POST) {
+    server.send(405, "text/plain", "Method Not Allowed");
+    return;
+  }
+
+  String json = server.arg("plain");
+  DynamicJsonDocument requestData(200);
+  DeserializationError error = deserializeJson(requestData, json);
+
+  if (error) {
+    Serial.println("Failed to parse JSON");
+    server.send(400, "text/plain", "Bad Request");
+    return;
+  }
+
+  // Update the variables with the new values
+  ALLOW_DOOR_OPENING = requestData["ALLOW_DOOR_OPENING"].as<String>() == "1";
+  close_door_in = requestData["close_door_in"].as<String>().toInt();
+  blinker_delay = requestData["blinker_delay"].as<String>().toInt();
+  blinker_for = requestData["blinker_for"].as<String>().toInt();
+  TRY_FILE_WIFI_CREDS = requestData["TRY_FILE_WIFI_CREDS"].as<String>() == "1";
+  recheck_internet_connectivity_in =
+      requestData["recheck_internet_connectivity_in"].as<String>().toInt();
+  BYPASS_PREVIOUS_DOOR_STATE =
+      requestData["BYPASS_PREVIOUS_DOOR_STATE"].as<String>() == "1";
+  file_wifi_ssid = requestData["file_wifi_ssid"].as<String>();
+  file_wifi_pass = requestData["file_wifi_pass"].as<String>();
+
+  Serial.println("Variables updated:");
+  Serial.println("ALLOW_DOOR_OPENING : " +
+                 String(ALLOW_DOOR_OPENING ? "true" : "false"));
+  Serial.println("close_door_in: " + String(close_door_in));
+  Serial.println("blinker_delay: " + String(blinker_delay));
+  Serial.println("blinker_for: " + String(blinker_for));
+  Serial.println("TRY_FILE_WIFI_CREDS: " +
+                 String(TRY_FILE_WIFI_CREDS ? "true" : "false"));
+  Serial.println("recheck_internet_connectivity_in: " +
+                 String(recheck_internet_connectivity_in));
+  Serial.println("BYPASS_PREVIOUS_DOOR_STATE: " +
+                 String(BYPASS_PREVIOUS_DOOR_STATE ? "true" : "false"));
+  Serial.println("file_wifi_ssid: " + file_wifi_ssid);
+  Serial.println("Variable 2: " + file_wifi_pass);
+
+  server.send(200, "application/json",
+              "{\"status\": \"success\", \"message\": \"Variables updated "
+              "successfully\"}");
+}
+
+// Handle GET request to retrieve variable values
+void handleGetVariables() {
+  // Create a JSON object to store the variable values
+  StaticJsonDocument<200> responseData;
+  responseData["ALLOW_DOOR_OPENING"] = ALLOW_DOOR_OPENING ? 1 : 0;
+  responseData["close_door_in"] = close_door_in;
+  responseData["blinker_delay"] = blinker_delay;
+  responseData["blinker_for"] = blinker_for;
+  responseData["TRY_FILE_WIFI_CREDS"] = TRY_FILE_WIFI_CREDS ? 1 : 0;
+  responseData["recheck_internet_connectivity_in"] =
+      recheck_internet_connectivity_in;
+  responseData["BYPASS_PREVIOUS_DOOR_STATE"] =
+      BYPASS_PREVIOUS_DOOR_STATE ? 1 : 0;
+  responseData["file_wifi_ssid"] = file_wifi_ssid;
+  responseData["file_wifi_pass"] = file_wifi_pass;
+
+  // Serialize the JSON object to a string
+  String responseJson;
+  serializeJson(responseData, responseJson);
+
+  // Send the JSON response to the client
+  server.send(200, "application/json", responseJson);
+}
+//~ server base functions end

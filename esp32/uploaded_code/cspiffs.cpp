@@ -74,8 +74,7 @@ String Cspiffs::getFileVariableValue(String varName, bool createNew) {
   int secondQuote = targetLine.indexOf('"', firstQuote + 1);
 
   if (firstQuote != -1 && secondQuote != -1) {
-    String quote_string =
-        "\"" + targetLine.substring(firstQuote + 1, secondQuote) + "\"";
+    String quote_string = targetLine.substring(firstQuote + 1, secondQuote);
     return quote_string;
   } else {
     String variableValue = fetchNumber(targetValue, '.');

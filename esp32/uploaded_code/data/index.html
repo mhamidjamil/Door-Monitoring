@@ -4,21 +4,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Variables</title>
+    <title>Edit Params</title>
 </head>
 
 <body>
-    <h1>Edit Variables</h1>
+    <h1>Edit Values</h1>
 
     <form id="variableForm">
-        <label for="variable1">Variable 1:</label>
-        <input type="text" id="variable1" name="variable1"><br><br>
 
-        <label for="variable2">Variable 2:</label>
-        <input type="text" id="variable2" name="variable2"><br><br>
+        <label for="ALLOW_DOOR_OPENING">Control door lock (1: Yes, 0: No):</label>
+        <input type="text" id="ALLOW_DOOR_OPENING" name="ALLOW_DOOR_OPENING"><br><br>
 
-        <label for="variable3">Variable 3:</label>
-        <input type="text" id="variable3" name="variable3"><br><br>
+        <label for="close_door_in">Close door in:</label>
+        <input type="text" id="close_door_in" name="close_door_in"><br><br>
+
+        <label for="blinker_delay">Power bank LED delay (in seconds):</label>
+        <input type="text" id="blinker_delay" name="blinker_delay"><br><br>
+
+        <label for="blinker_for">Power Bank LED blink for (in milliseconds):</label>
+        <input type="text" id="blinker_for" name="blinker_for"><br><br>
+
+        <label for="TRY_FILE_WIFI_CREDS">Try file wifi credentials (1: Yes, 0: No):</label>
+        <input type="text" id="TRY_FILE_WIFI_CREDS" name="TRY_FILE_WIFI_CREDS"><br><br>
+
+        <label for="recheck_internet_connectivity_in">Recheck wifi status in (seconds):</label>
+        <input type="text" id="recheck_internet_connectivity_in" name="recheck_internet_connectivity_in"><br><br>
+
+        <label for="BYPASS_PREVIOUS_DOOR_STATE">Force reopen (1: yes, 0: No):</label>
+        <input type="text" id="BYPASS_PREVIOUS_DOOR_STATE" name="BYPASS_PREVIOUS_DOOR_STATE"><br><br>
+
+        <label for="file_wifi_ssid">Wifi name:</label>
+        <input type="text" id="file_wifi_ssid" name="file_wifi_ssid"><br><br>
+
+        <label for="file_wifi_pass">Wifi password:</label>
+        <input type="password" id="file_wifi_pass" name="file_wifi_pass"><br><br>
+        <button type="button" id="togglePassword">Show Password</button><br><br>
 
         <button type="button" onclick="updateVariables()">Update</button>
     </form>
@@ -28,23 +48,41 @@
         async function fetchVariables() {
             const response = await fetch('/getVariables');
             const data = await response.json();
-            document.getElementById('variable1').value = data.variable1;
-            document.getElementById('variable2').value = data.variable2;
-            document.getElementById('variable3').value = data.variable3;
+            document.getElementById('ALLOW_DOOR_OPENING').value = data.ALLOW_DOOR_OPENING;
+            document.getElementById('close_door_in').value = data.close_door_in;
+            document.getElementById('blinker_delay').value = data.blinker_delay;
+            document.getElementById('blinker_for').value = data.blinker_for;
+            document.getElementById('TRY_FILE_WIFI_CREDS').value = data.TRY_FILE_WIFI_CREDS;
+            document.getElementById('recheck_internet_connectivity_in').value = data.recheck_internet_connectivity_in;
+            document.getElementById('BYPASS_PREVIOUS_DOOR_STATE').value = data.BYPASS_PREVIOUS_DOOR_STATE;
+            document.getElementById('file_wifi_ssid').value = data.file_wifi_ssid;
+            document.getElementById('file_wifi_pass').value = data.file_wifi_pass;
         }
 
         // Function to send updated variable values to the server
         async function updateVariables() {
             // Get the values from the form fields
-            var variable1 = document.getElementById("variable1").value;
-            var variable2 = document.getElementById("variable2").value;
-            var variable3 = document.getElementById("variable3").value;
+            var ALLOW_DOOR_OPENING = document.getElementById("ALLOW_DOOR_OPENING").value;
+            var close_door_in = document.getElementById("close_door_in").value;
+            var blinker_delay = document.getElementById("blinker_delay").value;
+            var blinker_for = document.getElementById("blinker_for").value;
+            var TRY_FILE_WIFI_CREDS = document.getElementById("TRY_FILE_WIFI_CREDS").value;
+            var recheck_internet_connectivity_in = document.getElementById("recheck_internet_connectivity_in").value;
+            var BYPASS_PREVIOUS_DOOR_STATE = document.getElementById("BYPASS_PREVIOUS_DOOR_STATE").value;
+            var file_wifi_ssid = document.getElementById("file_wifi_ssid").value;
+            var file_wifi_pass = document.getElementById("file_wifi_pass").value;
 
             // Prepare the data to send to the server
             var data = {
-                variable1: variable1,
-                variable2: variable2,
-                variable3: variable3
+                ALLOW_DOOR_OPENING: ALLOW_DOOR_OPENING,
+                close_door_in: close_door_in,
+                blinker_delay: blinker_delay,
+                blinker_for: blinker_for,
+                TRY_FILE_WIFI_CREDS: TRY_FILE_WIFI_CREDS,
+                recheck_internet_connectivity_in: recheck_internet_connectivity_in,
+                BYPASS_PREVIOUS_DOOR_STATE: BYPASS_PREVIOUS_DOOR_STATE,
+                file_wifi_ssid: file_wifi_ssid,
+                file_wifi_pass: file_wifi_pass
             };
 
             // Send the data to the server using fetch API
@@ -63,6 +101,17 @@
                 alert('Failed to update variables');
             }
         }
+
+        document.getElementById("togglePassword").addEventListener("click", function () {
+            var passwordInput = document.getElementById("file_wifi_pass");
+            if (passwordInput.type === "password") {
+                passwordInput.type = "text";
+                this.textContent = "Hide Password";
+            } else {
+                passwordInput.type = "password";
+                this.textContent = "Show Password";
+            }
+        });
 
         // Call fetchVariables function when the page is loaded
         window.onload = fetchVariables;
