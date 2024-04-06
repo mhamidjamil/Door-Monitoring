@@ -56,6 +56,8 @@ std::string receivedData = "";
 String file_wifi_ssid = "";
 String file_wifi_pass = "";
 
+bool OWN_NETWORK_CREATED = false;
+
 class MyServerCallbacks : public BLEServerCallbacks {
   void onConnect(BLEServer *pServer) { deviceConnected = true; }
 
@@ -165,7 +167,8 @@ void setup() {
 }
 
 void loop() {
-  Blynk.run();
+  if (IS_CONNECTED_TO_WIFI)
+    Blynk.run();
 
   server.handleClient(); // Handle client requests
 
@@ -195,7 +198,8 @@ void loop() {
   unsigned long currentTime = millis() / 1000;
   if (currentTime - lastCheckTime >= recheck_internet_connectivity_in) {
     lastCheckTime = currentTime;
-    checkInternetConnectivity();
+    if (!checkInternetConnectivity())
+      connectToWifiAndBlynk();
   }
 
   manageBackGroundJobs();
@@ -240,7 +244,7 @@ void inputManager(String command) {
 void connectToWifiAndBlynk() {
   Serial.println("Connecting to Wi-Fi...");
 
-  bool connected_with_wifi = false;
+  IS_CONNECTED_TO_WIFI = false;
   if (TRY_FILE_WIFI_CREDS) {
     file_wifi_ssid = cspi.getFileVariableValue("new_wifi_name");
     char file_ssid[file_wifi_ssid.length() + 1]; // Add 1 for null terminator
@@ -252,30 +256,33 @@ void connectToWifiAndBlynk() {
     file_wifi_pass.toCharArray(file_password, sizeof(file_password));
     println("Connecting to file ssid:" + String(file_ssid) +
             " password: " + String(file_password));
-    connected_with_wifi = validateWIFICreds(file_ssid, file_password);
-    if (connected_with_wifi)
+    IS_CONNECTED_TO_WIFI = validateWIFICreds(file_ssid, file_password);
+    if (IS_CONNECTED_TO_WIFI)
       Blynk.begin(BLYNK_AUTH_TOKEN, file_ssid, file_password);
   }
 
-  if (!connected_with_wifi && validateWIFICreds(ssid, pass, 20)) {
+  if (!IS_CONNECTED_TO_WIFI && validateWIFICreds(ssid, pass, 20)) {
     println("Connecting to ssid: " + String(ssid));
     Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+    IS_CONNECTED_TO_WIFI = true;
+  } else if (!OWN_NETWORK_CREATED) {
+    createOwnNetwork();
+    IS_CONNECTED_TO_WIFI = false;
+    OWN_NETWORK_CREATED = true;
   }
 
-  println("Trying to connect to blynk");
-  if (Blynk.connect()) {
-    Serial.println("Connected to Blynk");
-    Serial.println(WiFi.localIP());
-  } else {
-    Serial.println("Failed to connect to Blynk");
-    if (TRY_FILE_WIFI_CREDS) {
-      TRY_FILE_WIFI_CREDS = false;
-      connectToWifiAndBlynk(); // try again
+  if (IS_CONNECTED_TO_WIFI) {
+    println("Trying to connect to blynk");
+    if (Blynk.connect()) {
+      Serial.println("Connected to Blynk");
+      Serial.println(WiFi.localIP());
+    } else {
+      Serial.println("Failed to connect to Blynk");
     }
   }
 }
 
-void checkInternetConnectivity() {
+bool checkInternetConnectivity() {
   Serial.println("Checking internet connectivity...");
   WiFiClient client;
   bool isConnected = false;
@@ -301,6 +308,7 @@ void checkInternetConnectivity() {
     client.stop();
     // digitalWrite(builtin_led, LOW); // Turn off LED if internet is connected
   }
+  return isConnected;
 }
 
 BLYNK_WRITE(V1) {
@@ -477,6 +485,7 @@ bool validateWIFICreds(char ssid[], char pass[], int timeOut) {
   if (i < timeOut) {
     println("Connected.\n Disconnecting...");
     WiFi.disconnect(true);
+    delay(1000);
     return true;
   }
 }
