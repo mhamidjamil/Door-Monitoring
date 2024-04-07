@@ -17,7 +17,9 @@ char pass[] = MY_PASSWORD;
 #include <Servo.h>
 #elif defined(ESP32)
 #include <BlynkSimpleEsp32.h>
+#include <ESP32Servo.h>
 #include <WiFi.h>
+
 #endif
 
 #include <ArduinoJson.h>
@@ -30,6 +32,7 @@ char pass[] = MY_PASSWORD;
 
 Cspiffs cspi;
 c_led led;
+Servo servo;
 
 unsigned int recheck_internet_connectivity_in = 300; // in seconds
 
@@ -57,6 +60,9 @@ String new_wifi_name = "";
 String new_wifi_password = "";
 
 bool OWN_NETWORK_CREATED = false;
+
+int OPENING_ANGLE = 0;
+int CLOSING_ANGLE = 100;
 
 class MyServerCallbacks : public BLEServerCallbacks {
   void onConnect(BLEServer *pServer) { deviceConnected = true; }
@@ -109,12 +115,14 @@ void BLE_inputManager(String input) {
 }
 
 const int builtin_led = 2;
-const int white_bulb = 5;
-#define WHITE_LED 4
-#define BLUE_LED 16
-#define YELLOW_LED 17
-#define RED_LED 18
+const int white_bulb = 33;
 
+#define WHITE_LED 14
+#define BLUE_LED 27
+#define YELLOW_LED 25
+#define RED_LED 26
+
+#define SERVO_PIN 12
 #define INPUT_BUTTON 13
 
 unsigned int door_last_open_on = 0;
@@ -156,6 +164,7 @@ void setup() {
   connectToWifiAndBlynk(); // Attempt initial connection
   led.led(RED_LED, false);
 
+  led_test();
   // Set up routes
   server.on("/", HTTP_GET, handleRoot);
   server.on("/update", HTTP_POST, handleUpdate);
@@ -164,6 +173,7 @@ void setup() {
   // Start server
   server.begin();
   Serial.println("Server started");
+  servo.attach(SERVO_PIN);
 }
 
 void loop() {
@@ -254,7 +264,7 @@ void connectToWifiAndBlynk() {
     char file_password[new_wifi_password.length() +
                        1]; // Add 1 for null terminator
     new_wifi_password.toCharArray(file_password, sizeof(file_password));
-    println("Connecting to file ssid:" + String(file_ssid) +
+    println("Connecting to file ssid: " + String(file_ssid) +
             " password: " + String(file_password));
     IS_CONNECTED_TO_WIFI = validateWIFICreds(file_ssid, file_password);
     if (IS_CONNECTED_TO_WIFI)
@@ -628,4 +638,27 @@ void doorState(bool state) {
     door_last_open_on = getSeconds();
   println("Door state: Door state: " + String(state ? "Open" : "Close"));
   digitalWrite(YELLOW_LED, state);
+  state ? servo.write(OPENING_ANGLE) : servo.write(CLOSING_ANGLE);
+}
+
+void led_test() {
+  digitalWrite(WHITE_LED, HIGH);
+  delay(500);
+  digitalWrite(WHITE_LED, LOW);
+  delay(300);
+
+  digitalWrite(BLUE_LED, HIGH);
+  delay(500);
+  digitalWrite(BLUE_LED, LOW);
+  delay(300);
+
+  digitalWrite(RED_LED, HIGH);
+  delay(500);
+  digitalWrite(RED_LED, LOW);
+  delay(300);
+
+  digitalWrite(YELLOW_LED, HIGH);
+  delay(500);
+  digitalWrite(YELLOW_LED, LOW);
+  delay(300);
 }
