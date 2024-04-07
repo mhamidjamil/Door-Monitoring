@@ -61,8 +61,8 @@ String new_wifi_password = "";
 
 bool OWN_NETWORK_CREATED = false;
 
-int OPENING_ANGLE = 0;
-int CLOSING_ANGLE = 100;
+int opening_angle = 0;
+int closing_angle = 180;
 
 class MyServerCallbacks : public BLEServerCallbacks {
   void onConnect(BLEServer *pServer) { deviceConnected = true; }
@@ -471,6 +471,8 @@ void syncSPIFFS() {
   recheck_internet_connectivity_in =
       cspi.getFileVariableValue("recheck_internet_connectivity_in", true)
           .toInt();
+  opening_angle = cspi.getFileVariableValue("opening_angle", true).toInt();
+  closing_angle = cspi.getFileVariableValue("closing_angle", true).toInt();
 }
 
 void log(String msg) {
@@ -547,6 +549,8 @@ void handleUpdate() {
   int new_blinker_for = requestData["blinker_for"].as<String>().toInt();
   int new_recheck_internet_connectivity_in =
       requestData["recheck_internet_connectivity_in"].as<String>().toInt();
+  int new_opening_angle = requestData["opening_angle"].as<String>().toInt();
+  int new_closing_angle = requestData["closing_angle"].as<String>().toInt();
   String new_file_wifi_ssid = requestData["new_wifi_name"].as<String>();
   String new_file_wifi_pass = requestData["new_wifi_password"].as<String>();
 
@@ -563,6 +567,8 @@ void handleUpdate() {
   updateAndNotify("recheck_internet_connectivity_in",
                   new_recheck_internet_connectivity_in,
                   recheck_internet_connectivity_in);
+  updateAndNotify("opening_angle", new_opening_angle, opening_angle);
+  updateAndNotify("closing_angle", new_closing_angle, closing_angle);
   updateAndNotify("new_wifi_name", new_file_wifi_ssid, new_wifi_name);
   updateAndNotify("new_wifi_password", new_file_wifi_pass, new_wifi_password);
   syncSPIFFS();
@@ -606,6 +612,8 @@ void handleGetVariables() {
       recheck_internet_connectivity_in;
   responseData["BYPASS_PREVIOUS_DOOR_STATE"] =
       BYPASS_PREVIOUS_DOOR_STATE ? 1 : 0;
+  responseData["opening_angle"] = opening_angle;
+  responseData["closing_angle"] = closing_angle;
   responseData["new_wifi_name"] = new_wifi_name;
   responseData["new_wifi_password"] = new_wifi_password;
 
@@ -638,7 +646,7 @@ void doorState(bool state) {
     door_last_open_on = getSeconds();
   println("Door state: Door state: " + String(state ? "Open" : "Close"));
   digitalWrite(YELLOW_LED, state);
-  state ? servo.write(OPENING_ANGLE) : servo.write(CLOSING_ANGLE);
+  state ? servo.write(opening_angle) : servo.write(closing_angle);
 }
 
 void led_test() {

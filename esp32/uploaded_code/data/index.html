@@ -33,6 +33,12 @@
         <label for="BYPASS_PREVIOUS_DOOR_STATE">Force reopen (1: yes, 0: No):</label>
         <input type="text" id="BYPASS_PREVIOUS_DOOR_STATE" name="BYPASS_PREVIOUS_DOOR_STATE"><br><br>
 
+        <label for="opening_angle">Servo motor opening angle:</label>
+        <input type="text" id="opening_angle" name="opening_angle"><br><br>
+
+        <label for="closing_angle">Servo motor closing angle:</label>
+        <input type="text" id="closing_angle" name="closing_angle"><br><br>
+
         <label for="new_wifi_name">Wifi name:</label>
         <input type="text" id="new_wifi_name" name="new_wifi_name"><br><br>
 
@@ -55,6 +61,8 @@
             document.getElementById('TRY_FILE_WIFI_CREDS').value = data.TRY_FILE_WIFI_CREDS;
             document.getElementById('recheck_internet_connectivity_in').value = data.recheck_internet_connectivity_in;
             document.getElementById('BYPASS_PREVIOUS_DOOR_STATE').value = data.BYPASS_PREVIOUS_DOOR_STATE;
+            document.getElementById('opening_angle').value = data.opening_angle;
+            document.getElementById('closing_angle').value = data.closing_angle;
             document.getElementById('new_wifi_name').value = data.new_wifi_name;
             document.getElementById('new_wifi_password').value = data.new_wifi_password;
         }
@@ -69,6 +77,8 @@
             var TRY_FILE_WIFI_CREDS = document.getElementById("TRY_FILE_WIFI_CREDS").value;
             var recheck_internet_connectivity_in = document.getElementById("recheck_internet_connectivity_in").value;
             var BYPASS_PREVIOUS_DOOR_STATE = document.getElementById("BYPASS_PREVIOUS_DOOR_STATE").value;
+            var opening_angle = document.getElementById("opening_angle").value;
+            var closing_angle = document.getElementById("closing_angle").value;
             var new_wifi_name = document.getElementById("new_wifi_name").value;
             var new_wifi_password = document.getElementById("new_wifi_password").value;
 
@@ -81,6 +91,8 @@
                 TRY_FILE_WIFI_CREDS: TRY_FILE_WIFI_CREDS,
                 recheck_internet_connectivity_in: recheck_internet_connectivity_in,
                 BYPASS_PREVIOUS_DOOR_STATE: BYPASS_PREVIOUS_DOOR_STATE,
+                opening_angle: opening_angle,
+                closing_angle: closing_angle,
                 new_wifi_name: new_wifi_name,
                 new_wifi_password: new_wifi_password
             };
