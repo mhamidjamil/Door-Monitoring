@@ -49,6 +49,12 @@ public:
   String fetchNumber(String str, char charToInclude);
   // will return required number from string
 
+  String fetchString(String str);
+  // will return required string from string
+
+  bool isNumber(String str);
+  // will return required true if string is only number
+
   void enable_SPI_debugging();                  // enable SPI debug
   void disable_SPI_debugging();                 // disable SPI debug
   void println(String tempStr);                 // actually Serail.println()

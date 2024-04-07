@@ -53,8 +53,8 @@ BLECharacteristic *pCharacteristic = NULL;
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
 std::string receivedData = "";
-String file_wifi_ssid = "";
-String file_wifi_pass = "";
+String new_wifi_name = "";
+String new_wifi_password = "";
 
 bool OWN_NETWORK_CREATED = false;
 
@@ -147,14 +147,14 @@ void setup() {
 
   pinMode(INPUT_BUTTON, INPUT);
 
-  led_test();
-
   if (!SPIFFS.begin(true)) {
     log("Failed to mount file system");
   }
 
   syncSPIFFS();
+  led.led(RED_LED, true);
   connectToWifiAndBlynk(); // Attempt initial connection
+  led.led(RED_LED, false);
 
   // Set up routes
   server.on("/", HTTP_GET, handleRoot);
@@ -246,29 +246,32 @@ void connectToWifiAndBlynk() {
 
   IS_CONNECTED_TO_WIFI = false;
   if (TRY_FILE_WIFI_CREDS) {
-    file_wifi_ssid = cspi.getFileVariableValue("new_wifi_name");
-    char file_ssid[file_wifi_ssid.length() + 1]; // Add 1 for null terminator
-    file_wifi_ssid.toCharArray(file_ssid, sizeof(file_ssid));
+    new_wifi_name = cspi.getFileVariableValue("new_wifi_name");
+    char file_ssid[new_wifi_name.length() + 1]; // Add 1 for null terminator
+    new_wifi_name.toCharArray(file_ssid, sizeof(file_ssid));
 
-    file_wifi_pass = cspi.getFileVariableValue("new_wifi_password");
-    char
-        file_password[file_wifi_pass.length() + 1]; // Add 1 for null terminator
-    file_wifi_pass.toCharArray(file_password, sizeof(file_password));
+    new_wifi_password = cspi.getFileVariableValue("new_wifi_password");
+    char file_password[new_wifi_password.length() +
+                       1]; // Add 1 for null terminator
+    new_wifi_password.toCharArray(file_password, sizeof(file_password));
     println("Connecting to file ssid:" + String(file_ssid) +
             " password: " + String(file_password));
     IS_CONNECTED_TO_WIFI = validateWIFICreds(file_ssid, file_password);
     if (IS_CONNECTED_TO_WIFI)
       Blynk.begin(BLYNK_AUTH_TOKEN, file_ssid, file_password);
+    led.led(builtin_led, true);
   }
 
   if (!IS_CONNECTED_TO_WIFI && validateWIFICreds(ssid, pass, 20)) {
     println("Connecting to ssid: " + String(ssid));
     Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
     IS_CONNECTED_TO_WIFI = true;
+    led.led(builtin_led, true);
   } else if (!OWN_NETWORK_CREATED) {
     createOwnNetwork();
     IS_CONNECTED_TO_WIFI = false;
     OWN_NETWORK_CREATED = true;
+    led.led(builtin_led, false);
   }
 
   if (IS_CONNECTED_TO_WIFI) {
@@ -300,13 +303,12 @@ bool checkInternetConnectivity() {
     Serial.println("Internet connected");
     IS_CONNECTED_TO_INTERNET = true;
     client.stop();
-    // digitalWrite(builtin_led, HIGH); // Turn on LED if internet is not
-    // connected
+    digitalWrite(builtin_led, HIGH);
   } else {
     Serial.println("Internet not connected");
     IS_CONNECTED_TO_INTERNET = false;
     client.stop();
-    // digitalWrite(builtin_led, LOW); // Turn off LED if internet is connected
+    digitalWrite(builtin_led, LOW);
   }
   return isConnected;
 }
@@ -400,13 +402,16 @@ void createOwnNetwork() {
   Serial.print("AP IP address: ");
   Serial.println(WiFi.softAPIP());
   Serial.println("Own network created");
+  led.led(WHITE_LED, true);
 }
 
+// # Jobs handler
 void manageBackGroundJobs() {
   closeDoorIfNot();
   blinker();
   if (digitalRead(INPUT_BUTTON) == HIGH)
     alterDoorState();
+  led.led(BLUE_LED, !ALLOW_DOOR_OPENING);
   delay(50);
 }
 
@@ -532,8 +537,8 @@ void handleUpdate() {
   int new_blinker_for = requestData["blinker_for"].as<String>().toInt();
   int new_recheck_internet_connectivity_in =
       requestData["recheck_internet_connectivity_in"].as<String>().toInt();
-  String new_file_wifi_ssid = requestData["file_wifi_ssid"].as<String>();
-  String new_file_wifi_pass = requestData["file_wifi_pass"].as<String>();
+  String new_file_wifi_ssid = requestData["new_wifi_name"].as<String>();
+  String new_file_wifi_pass = requestData["new_wifi_password"].as<String>();
 
   Serial.println("Variables updated:");
   updateAndNotify("ALLOW_DOOR_OPENING", new_ALLOW_DOOR_OPENING,
@@ -548,8 +553,8 @@ void handleUpdate() {
   updateAndNotify("recheck_internet_connectivity_in",
                   new_recheck_internet_connectivity_in,
                   recheck_internet_connectivity_in);
-  updateAndNotify("file_wifi_ssid", new_file_wifi_ssid, file_wifi_ssid);
-  updateAndNotify("file_wifi_pass", new_file_wifi_pass, file_wifi_pass);
+  updateAndNotify("new_wifi_name", new_file_wifi_ssid, new_wifi_name);
+  updateAndNotify("new_wifi_password", new_file_wifi_pass, new_wifi_password);
   syncSPIFFS();
 
   server.send(200, "application/json",
@@ -591,8 +596,8 @@ void handleGetVariables() {
       recheck_internet_connectivity_in;
   responseData["BYPASS_PREVIOUS_DOOR_STATE"] =
       BYPASS_PREVIOUS_DOOR_STATE ? 1 : 0;
-  responseData["file_wifi_ssid"] = file_wifi_ssid;
-  responseData["file_wifi_pass"] = file_wifi_pass;
+  responseData["new_wifi_name"] = new_wifi_name;
+  responseData["new_wifi_password"] = new_wifi_password;
 
   // Serialize the JSON object to a string
   String responseJson;
@@ -602,28 +607,6 @@ void handleGetVariables() {
   server.send(200, "application/json", responseJson);
 }
 //~ server base functions end
-
-void led_test() {
-  digitalWrite(WHITE_LED, HIGH);
-  delay(500);
-  digitalWrite(WHITE_LED, LOW);
-  delay(300);
-
-  digitalWrite(BLUE_LED, HIGH);
-  delay(500);
-  digitalWrite(BLUE_LED, LOW);
-  delay(300);
-
-  digitalWrite(YELLOW_LED, HIGH);
-  delay(500);
-  digitalWrite(YELLOW_LED, LOW);
-  delay(300);
-
-  digitalWrite(RED_LED, HIGH);
-  delay(500);
-  digitalWrite(RED_LED, LOW);
-  delay(300);
-}
 
 void alterDoorState() {
   println("Altering door state...\n New state: " +

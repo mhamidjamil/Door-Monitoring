@@ -12,6 +12,7 @@ private:
 
 public:
   c_led();
+  void led(int pinNumber, bool state);
   void led_on();
   void led_off();
   void led_on(int pin_number);

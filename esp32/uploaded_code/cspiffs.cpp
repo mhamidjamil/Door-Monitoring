@@ -74,10 +74,16 @@ String Cspiffs::getFileVariableValue(String varName, bool createNew) {
   int secondQuote = targetLine.indexOf('"', firstQuote + 1);
 
   if (firstQuote != -1 && secondQuote != -1) {
+    println("\t Quote string detected!", SPI_DEBUGGING);
     String quote_string = targetLine.substring(firstQuote + 1, secondQuote);
     return quote_string;
   } else {
-    String variableValue = fetchNumber(targetValue, '.');
+    String variableValue;
+    println("Targeted value: " + targetValue, SPI_DEBUGGING);
+    if (isNumber(targetValue))
+      variableValue = fetchNumber(targetValue, '.');
+    else
+      variableValue = fetchString(targetValue);
     return variableValue;
   }
 }
@@ -110,7 +116,8 @@ void Cspiffs::updateSPIFFS(String variableName, String newValue,
   while (file.available()) {
     String line = file.readStringUntil('\n');
     if (line.indexOf(variableName) != -1) {
-      line = variableName + ": " + newValue;
+      line = variableName + ": " +
+             (isNumber(newValue) ? newValue : "\"" + newValue + "\"");
       valueReplaced = true;
     }
     updatedContent += line + "\n";
@@ -188,6 +195,30 @@ String Cspiffs::fetchNumber(String str, char charToInclude) {
     }
   }
   return number;
+}
+
+String Cspiffs::fetchString(String str) {
+  String return_string = "";
+  bool string_start = false;
+  for (int i = 0; i < str.length(); i++) {
+    if ((str[i] >= 'a' && str[i] <= 'z') || (str[i] >= 'A' && str[i] <= 'Z') ||
+        (str[i] >= '0' && str[i] <= '9') ||
+        ((str[i] == '_') || (str[i] == '-')) && (str[i] != '\n')) {
+      return_string += str[i];
+      string_start = true;
+    } else if (string_start) {
+      return return_string;
+    }
+  }
+  return return_string;
+}
+
+bool Cspiffs::isNumber(String str) {
+  for (int i = 0; i < str.length(); i++)
+    if ((str[i] >= 'a' && str[i] <= 'z') || (str[i] >= 'A' && str[i] <= 'Z') ||
+        (str[i] >= '_' || str[i] <= '-'))
+      return false;
+  return true;
 }
 
 void Cspiffs::enable_SPI_debugging() { SPI_DEBUGGING = true; }

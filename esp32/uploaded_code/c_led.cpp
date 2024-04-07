@@ -50,6 +50,10 @@ void c_led::blink(int times, int delay_) {
   }
 }
 
+void c_led::led(int pinNUmber, bool state) {
+  digitalWrite(pinNUmber, state == 1 ? HIGH : LOW);
+}
+
 void c_led::println(String tempStr) { Serial.println(tempStr); }
 
 void c_led::println(String tempStr, bool condition) {

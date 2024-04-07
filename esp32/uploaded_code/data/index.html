@@ -33,11 +33,11 @@
         <label for="BYPASS_PREVIOUS_DOOR_STATE">Force reopen (1: yes, 0: No):</label>
         <input type="text" id="BYPASS_PREVIOUS_DOOR_STATE" name="BYPASS_PREVIOUS_DOOR_STATE"><br><br>
 
-        <label for="file_wifi_ssid">Wifi name:</label>
-        <input type="text" id="file_wifi_ssid" name="file_wifi_ssid"><br><br>
+        <label for="new_wifi_name">Wifi name:</label>
+        <input type="text" id="new_wifi_name" name="new_wifi_name"><br><br>
 
-        <label for="file_wifi_pass">Wifi password:</label>
-        <input type="password" id="file_wifi_pass" name="file_wifi_pass"><br><br>
+        <label for="new_wifi_password">Wifi password:</label>
+        <input type="password" id="new_wifi_password" name="new_wifi_password"><br><br>
         <button type="button" id="togglePassword">Show Password</button><br><br>
 
         <button type="button" onclick="updateVariables()">Update</button>
@@ -55,8 +55,8 @@
             document.getElementById('TRY_FILE_WIFI_CREDS').value = data.TRY_FILE_WIFI_CREDS;
             document.getElementById('recheck_internet_connectivity_in').value = data.recheck_internet_connectivity_in;
             document.getElementById('BYPASS_PREVIOUS_DOOR_STATE').value = data.BYPASS_PREVIOUS_DOOR_STATE;
-            document.getElementById('file_wifi_ssid').value = data.file_wifi_ssid;
-            document.getElementById('file_wifi_pass').value = data.file_wifi_pass;
+            document.getElementById('new_wifi_name').value = data.new_wifi_name;
+            document.getElementById('new_wifi_password').value = data.new_wifi_password;
         }
 
         // Function to send updated variable values to the server
@@ -69,8 +69,8 @@
             var TRY_FILE_WIFI_CREDS = document.getElementById("TRY_FILE_WIFI_CREDS").value;
             var recheck_internet_connectivity_in = document.getElementById("recheck_internet_connectivity_in").value;
             var BYPASS_PREVIOUS_DOOR_STATE = document.getElementById("BYPASS_PREVIOUS_DOOR_STATE").value;
-            var file_wifi_ssid = document.getElementById("file_wifi_ssid").value;
-            var file_wifi_pass = document.getElementById("file_wifi_pass").value;
+            var new_wifi_name = document.getElementById("new_wifi_name").value;
+            var new_wifi_password = document.getElementById("new_wifi_password").value;
 
             // Prepare the data to send to the server
             var data = {
@@ -81,8 +81,8 @@
                 TRY_FILE_WIFI_CREDS: TRY_FILE_WIFI_CREDS,
                 recheck_internet_connectivity_in: recheck_internet_connectivity_in,
                 BYPASS_PREVIOUS_DOOR_STATE: BYPASS_PREVIOUS_DOOR_STATE,
-                file_wifi_ssid: file_wifi_ssid,
-                file_wifi_pass: file_wifi_pass
+                new_wifi_name: new_wifi_name,
+                new_wifi_password: new_wifi_password
             };
 
             // Send the data to the server using fetch API
@@ -103,7 +103,7 @@
         }
 
         document.getElementById("togglePassword").addEventListener("click", function () {
-            var passwordInput = document.getElementById("file_wifi_pass");
+            var passwordInput = document.getElementById("new_wifi_password");
             if (passwordInput.type === "password") {
                 passwordInput.type = "text";
                 this.textContent = "Hide Password";
