@@ -424,7 +424,7 @@ void manageBackGroundJobs() {
   closeDoorIfNot();
   blinker();
   if (digitalRead(INPUT_BUTTON) == HIGH)
-    alterDoorState();
+    buttonDealer();
   led.led(BLUE_LED, !ALLOW_DOOR_OPENING);
   delay(50);
 }
@@ -640,8 +640,7 @@ void alterDoorState() {
 
 void doorState(bool state) {
   if (!ALLOW_DOOR_OPENING) {
-    println("Door functionality is disabled please run "
-            "[value of:ALLOW_DOOR_OPENING to 1] to enable");
+    println("Door functionality is disabled!");
     return;
   }
   if (DOOR_STATE != state)
@@ -673,4 +672,22 @@ void led_test() {
   delay(500);
   digitalWrite(YELLOW_LED, LOW);
   delay(300);
+}
+
+void buttonDealer() {
+  bool longPressed = false;
+  for (int i = 0; i < 4000 && (digitalRead(INPUT_BUTTON) == HIGH); i += 100) {
+    if (digitalRead(INPUT_BUTTON) == HIGH)
+      if (i > 3000) {
+        longPressed = true;
+        led.led(BLUE_LED, ALLOW_DOOR_OPENING); // condition and check is valid
+      }
+    delay(100);
+  }
+  if (longPressed) {
+    ALLOW_DOOR_OPENING = !ALLOW_DOOR_OPENING;
+    cspi.updateSPIFFS("ALLOW_DOOR_OPENING",
+                      (String(ALLOW_DOOR_OPENING ? "1" : "0")));
+  } else
+    alterDoorState();
 }
