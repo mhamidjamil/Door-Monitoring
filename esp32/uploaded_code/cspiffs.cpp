@@ -182,12 +182,14 @@ String Cspiffs::getFirstLine(String str) {
   return newStr;
 }
 
+String Cspiffs::fetchNumber(String str) { return fetchNumber(str, '\n'); }
+
 String Cspiffs::fetchNumber(String str, char charToInclude) {
   String number = "";
   bool numberStart = false;
   for (int i = 0; i < str.length(); i++) {
     if (str[i] >= '0' && str[i] <= '9' ||
-        (str[i] == charToInclude && numberStart)) {
+        ((str[i] == charToInclude && charToInclude != '\n') && numberStart)) {
       number += str[i];
       numberStart = true;
     } else if (numberStart) {

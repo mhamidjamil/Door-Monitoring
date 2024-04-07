@@ -240,6 +240,10 @@ void inputManager(String command) {
     println("Reading SPI data\n\n");
     cspi.readSPIFFS();
     println("<- END \n\n");
+  } else if (isIn(command, "angle")) {
+    servo.write(cspi.fetchNumber(command).toInt());
+    delay(3000);
+    servo.write(closing_angle);
   } else if (isIn(command, "ip") || isIn(command, "IP") ||
              isIn(command, "Ip")) {
     IPAddress ipv4 = WiFi.localIP();

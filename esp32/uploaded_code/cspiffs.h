@@ -46,6 +46,7 @@ public:
   String getFirstLine(String str);
   // will return full line of required string
 
+  String fetchNumber(String str);
   String fetchNumber(String str, char charToInclude);
   // will return required number from string
 
