@@ -25,6 +25,9 @@ char pass[] = MY_PASSWORD;
 #include <ArduinoJson.h>
 #include <WebServer.h>
 
+#include <NTPClient.h>
+#include <WiFiUdp.h>
+
 #include <WiFiClient.h>
 
 #include "Cspiffs.h"
@@ -63,6 +66,30 @@ bool OWN_NETWORK_CREATED = false;
 
 int opening_angle = 0;
 int closing_angle = 180;
+
+int servo_shifter_timeout = 0; // in seconds
+// press button for n seconds to update lock status
+
+// Define NTP Client to get time
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP);
+
+// Variables to save date and time
+String formattedDate;
+
+struct RTC {
+  // Final data : 23/08/26,05:38:34+20
+  int year = 0;    // year will be 23
+  int month = 0;   // month will be 08
+  int date = 0;    // date will be 26
+  int hour = 0;    // hour will be 05
+  int minutes = 0; // minutes will be 38
+  int seconds = 0; // seconds will be 34
+};
+RTC myRTC;
+
+unsigned int last_time_updated = 0;
+int update_time_after = 10; // in minutes
 
 class MyServerCallbacks : public BLEServerCallbacks {
   void onConnect(BLEServer *pServer) { deviceConnected = true; }
@@ -174,6 +201,10 @@ void setup() {
   server.begin();
   Serial.println("Server started");
   servo.attach(SERVO_PIN);
+  if (IS_CONNECTED_TO_INTERNET) {
+    timeClient.begin();
+    timeClient.setTimeOffset(18000);
+  }
 }
 
 void loop() {
@@ -219,6 +250,8 @@ void inputManager(String command) {
   Serial.println("working on: " + command);
   if (isIn(command, "led on")) {
     led.led_on();
+  } else if (isIn(command, "led test")) {
+    led_test();
   } else if (isIn(command, "led off")) {
     led.led_off();
   } else if (isIn(command, "led2 on")) {
@@ -305,8 +338,10 @@ bool checkInternetConnectivity() {
   bool isConnected = false;
 
   for (int i = 0; i < 3; i++) {
-    if (client.connect("www.google.com", 80)) {
+    int response = client.connect("www.google.com", 80);
+    if (response) {
       isConnected = true;
+      log("response from google is: " + String(response));
       break;
     } else {
       delay(50);
@@ -319,7 +354,7 @@ bool checkInternetConnectivity() {
     client.stop();
     digitalWrite(builtin_led, HIGH);
   } else {
-    Serial.println("Internet not connected");
+    Serial.println("\t\t ! -> Internet not connected");
     IS_CONNECTED_TO_INTERNET = false;
     client.stop();
     digitalWrite(builtin_led, LOW);
@@ -426,6 +461,9 @@ void manageBackGroundJobs() {
   if (digitalRead(INPUT_BUTTON) == HIGH)
     buttonDealer();
   led.led(BLUE_LED, !ALLOW_DOOR_OPENING);
+  led.led(WHITE_LED, OWN_NETWORK_CREATED);
+  fetchOnlineTime();
+  // disableDoorServo();
   delay(50);
 }
 
@@ -456,6 +494,8 @@ void blinker() {
 
 unsigned int getSeconds() { return (millis() / 1000); }
 
+unsigned int getMinutes() { return (getSeconds() / 60); }
+
 void syncSPIFFS() {
   close_door_in = cspi.getFileVariableValue("close_door_in", true).toInt();
   BYPASS_PREVIOUS_DOOR_STATE =
@@ -477,6 +517,9 @@ void syncSPIFFS() {
           .toInt();
   opening_angle = cspi.getFileVariableValue("opening_angle", true).toInt();
   closing_angle = cspi.getFileVariableValue("closing_angle", true).toInt();
+
+  servo_shifter_timeout =
+      cspi.getFileVariableValue("servo_shifter_timeout", true).toInt();
 }
 
 void log(String msg) {
@@ -504,10 +547,12 @@ bool validateWIFICreds(char ssid[], char pass[], int timeOut) {
     i++;
   }
   if (i < timeOut) {
-    println("Connected.\n Disconnecting...");
+    println("Connected.");
+    bool status = checkInternetConnectivity();
+    println("\n Disconnecting wifi...");
     WiFi.disconnect(true);
-    delay(1000);
-    return true;
+    delay(2000);
+    return status;
   }
 }
 
@@ -555,6 +600,8 @@ void handleUpdate() {
       requestData["recheck_internet_connectivity_in"].as<String>().toInt();
   int new_opening_angle = requestData["opening_angle"].as<String>().toInt();
   int new_closing_angle = requestData["closing_angle"].as<String>().toInt();
+  int new_servo_shifter_timeout =
+      requestData["servo_shifter_timeout"].as<String>().toInt();
   String new_file_wifi_ssid = requestData["new_wifi_name"].as<String>();
   String new_file_wifi_pass = requestData["new_wifi_password"].as<String>();
 
@@ -573,6 +620,8 @@ void handleUpdate() {
                   recheck_internet_connectivity_in);
   updateAndNotify("opening_angle", new_opening_angle, opening_angle);
   updateAndNotify("closing_angle", new_closing_angle, closing_angle);
+  updateAndNotify("servo_shifter_timeout", new_servo_shifter_timeout,
+                  servo_shifter_timeout);
   updateAndNotify("new_wifi_name", new_file_wifi_ssid, new_wifi_name);
   updateAndNotify("new_wifi_password", new_file_wifi_pass, new_wifi_password);
   syncSPIFFS();
@@ -618,6 +667,7 @@ void handleGetVariables() {
       BYPASS_PREVIOUS_DOOR_STATE ? 1 : 0;
   responseData["opening_angle"] = opening_angle;
   responseData["closing_angle"] = closing_angle;
+  responseData["servo_shifter_timeout"] = servo_shifter_timeout;
   responseData["new_wifi_name"] = new_wifi_name;
   responseData["new_wifi_password"] = new_wifi_password;
 
@@ -676,9 +726,12 @@ void led_test() {
 
 void buttonDealer() {
   bool longPressed = false;
-  for (int i = 0; i < 4000 && (digitalRead(INPUT_BUTTON) == HIGH); i += 100) {
+  led.led(YELLOW_LED, true);
+  for (int i = 0;
+       i < servo_shifter_timeout + 3000 && (digitalRead(INPUT_BUTTON) == HIGH);
+       i += 100) {
     if (digitalRead(INPUT_BUTTON) == HIGH)
-      if (i > 3000) {
+      if (i > servo_shifter_timeout) {
         longPressed = true;
         led.led(BLUE_LED, ALLOW_DOOR_OPENING); // condition and check is valid
       }
@@ -690,4 +743,41 @@ void buttonDealer() {
                       (String(ALLOW_DOOR_OPENING ? "1" : "0")));
   } else
     alterDoorState();
+}
+
+void fetchOnlineTime() {
+  if (!IS_CONNECTED_TO_INTERNET ||
+      (getMinutes() - last_time_updated) < update_time_after)
+    return;
+
+  int i = 100;
+  while (!timeClient.update() && i > 0) {
+    timeClient.forceUpdate();
+    i -= 10;
+    delay(100);
+  }
+
+  formattedDate = timeClient.getFormattedDate();
+  updateOnlineTime(formattedDate, myRTC);
+  Serial.println("Update time: " + getRTC_Time());
+  // Serial.println("Updated RTC values:");
+  // Serial.printf("Year: %02d ", myRTC.year);
+  // Serial.printf("Month: %02d ", myRTC.month);
+  // Serial.printf("Date: %02d ", myRTC.date);
+  // Serial.printf("Hour: %02d ", myRTC.hour);
+  // Serial.printf("Minutes: %02d ", myRTC.minutes);
+  // Serial.printf("Seconds: %02d\n", myRTC.seconds);
+  last_time_updated = getMinutes();
+}
+
+void updateOnlineTime(String formattedDate, RTC &rtc) {
+  sscanf(formattedDate.c_str(), "%d-%d-%dT%d:%d:%dZ", &rtc.year, &rtc.month,
+         &rtc.date, &rtc.hour, &rtc.minutes, &rtc.seconds);
+  rtc.year = rtc.year % 100;
+}
+
+String getRTC_Time() {
+  return (String(myRTC.hour) + ":" + String(myRTC.minutes) + ":" +
+          String(myRTC.seconds) + " ___ " + String(myRTC.month) + "/" +
+          String(myRTC.date) + "/" + String(myRTC.year));
 }

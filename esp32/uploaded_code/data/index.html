@@ -39,12 +39,15 @@
         <label for="closing_angle">Servo motor closing angle:</label>
         <input type="text" id="closing_angle" name="closing_angle"><br><br>
 
+        <label for="servo_shifter_timeout">Press button for time (seconds) to change functionality:</label>
+        <input type="text" id="servo_shifter_timeout" name="servo_shifter_timeout"><br><br>
+
         <label for="new_wifi_name">Wifi name:</label>
         <input type="text" id="new_wifi_name" name="new_wifi_name"><br><br>
 
         <label for="new_wifi_password">Wifi password:</label>
-        <input type="password" id="new_wifi_password" name="new_wifi_password"><br><br>
-        <button type="button" id="togglePassword">Show Password</button><br><br>
+        <input type="password" id="new_wifi_password" name="new_wifi_password"><br>
+        <button type="button" id="togglePassword">👁️</button><br><br>
 
         <button type="button" onclick="updateVariables()">Update</button>
     </form>
@@ -63,6 +66,7 @@
             document.getElementById('BYPASS_PREVIOUS_DOOR_STATE').value = data.BYPASS_PREVIOUS_DOOR_STATE;
             document.getElementById('opening_angle').value = data.opening_angle;
             document.getElementById('closing_angle').value = data.closing_angle;
+            document.getElementById('servo_shifter_timeout').value = data.servo_shifter_timeout;
             document.getElementById('new_wifi_name').value = data.new_wifi_name;
             document.getElementById('new_wifi_password').value = data.new_wifi_password;
         }
@@ -79,6 +83,7 @@
             var BYPASS_PREVIOUS_DOOR_STATE = document.getElementById("BYPASS_PREVIOUS_DOOR_STATE").value;
             var opening_angle = document.getElementById("opening_angle").value;
             var closing_angle = document.getElementById("closing_angle").value;
+            var servo_shifter_timeout = document.getElementById("servo_shifter_timeout").value;
             var new_wifi_name = document.getElementById("new_wifi_name").value;
             var new_wifi_password = document.getElementById("new_wifi_password").value;
 
@@ -93,6 +98,7 @@
                 BYPASS_PREVIOUS_DOOR_STATE: BYPASS_PREVIOUS_DOOR_STATE,
                 opening_angle: opening_angle,
                 closing_angle: closing_angle,
+                servo_shifter_timeout: servo_shifter_timeout,
                 new_wifi_name: new_wifi_name,
                 new_wifi_password: new_wifi_password
             };

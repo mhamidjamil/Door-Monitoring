@@ -60,7 +60,7 @@ String Cspiffs::getFileVariableValue(String varName) {
 String Cspiffs::getFileVariableValue(String varName, bool createNew) {
   String targetLine = getCompleteString(getSPIFFSData(), varName);
 
-  println("Trying to fetch data from line : " + targetLine, SPI_DEBUGGING);
+  println("Trying to fetch data from line: " + targetLine, SPI_DEBUGGING);
   if (targetLine.indexOf(varName) == -1 && !createNew) {
     println("Variable not found in file returning -1");
     return "-1";
@@ -79,7 +79,7 @@ String Cspiffs::getFileVariableValue(String varName, bool createNew) {
     return quote_string;
   } else {
     String variableValue;
-    println("Targeted value: " + targetValue, SPI_DEBUGGING);
+    println("Targeted value" + targetValue, SPI_DEBUGGING);
     if (isNumber(targetValue))
       variableValue = fetchNumber(targetValue, '.');
     else
@@ -138,7 +138,7 @@ void Cspiffs::updateSPIFFS(String variableName, String newValue,
   if (!valueReplaced) {
     println("Variable not found in file");
     if (createIfNotExists) {
-      println("\t@Creating new variable");
+      println("\t\t\t@ ! => Creating new variable");
       updatedContent += ("\n" + variableName + ": " + newValue);
     }
   }
