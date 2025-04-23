@@ -58,7 +58,7 @@ BLEServer *pServer = NULL;
 BLECharacteristic *pCharacteristic = NULL;
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
-std::string receivedData = "";
+String receivedData = "";
 String new_wifi_name = "";
 String new_wifi_password = "";
 
@@ -99,7 +99,7 @@ class MyServerCallbacks : public BLEServerCallbacks {
 
 class MyCharacteristicCallbacks : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic *pCharacteristic) {
-    std::string value = pCharacteristic->getValue();
+    String value = pCharacteristic->getValue();
     if (value.length() > 0) {
       receivedData = value;
       Serial.print("Received from BLE: ");
