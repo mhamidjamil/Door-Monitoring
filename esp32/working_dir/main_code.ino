@@ -2,21 +2,13 @@
 
 #include "arduino_secrets.h"
 
-#define BLYNK_TEMPLATE_ID MY_ID
-#define BLYNK_TEMPLATE_NAME MY_TEMPLATE_NAME
-#define BLYNK_AUTH_TOKEN MY_AUTH_TOKEN
-
 char ssid[] = MY_SSID;
 char pass[] = MY_PASSWORD;
 
-#define BLYNK_PRINT Serial
-
 #if defined(ESP8266)
-#include <BlynkSimpleEsp8266.h>
 #include <ESP8266WiFi.h>
 #include <Servo.h>
 #elif defined(ESP32)
-#include <BlynkSimpleEsp32.h>
 #include <ESP32Servo.h>
 #include <WiFi.h>
 
@@ -70,25 +62,8 @@ int closing_angle = 180;
 int servo_shifter_timeout = 0; // in seconds
 // press button for n seconds to update lock status
 
-// Define NTP Client to get time
-// WiFiUDP ntpUDP;
-// NTPClient timeClient(ntpUDP);
-
-// Variables to save date and time
-String formattedDate;
-
-struct RTC {
-  // Final data : 23/08/26,05:38:34+20
-  int year = 0;    // year will be 23
-  int month = 0;   // month will be 08
-  int date = 0;    // date will be 26
-  int hour = 0;    // hour will be 05
-  int minutes = 0; // minutes will be 38
-  int seconds = 0; // seconds will be 34
-};
-RTC myRTC;
-
-unsigned int last_time_updated = 0;
+unsigned int last_time_update = 0;
+int UPDATE_DOOR_TIME = 3;   // in seconds
 int update_time_after = 10; // in minutes
 
 class MyServerCallbacks : public BLEServerCallbacks {
@@ -153,8 +128,8 @@ const int white_bulb = 33;
 #define INPUT_BUTTON 13
 
 unsigned int door_last_open_on = 0;
-int close_door_in = 5; // in seconds
-bool DOOR_STATE = false;
+int close_door_in = 5;   // in seconds
+bool DOOR_STATE = false; // by default close
 int door_pin = builtin_led;
 bool BYPASS_PREVIOUS_DOOR_STATE = false;
 bool ALLOW_DOOR_OPENING = true;
@@ -188,7 +163,7 @@ void setup() {
 
   syncSPIFFS();
   led.led(RED_LED, true);
-  connectToWifiAndBlynk(); // Attempt initial connection
+  connectToWifi(); // Attempt initial connection
   led.led(RED_LED, false);
 
   led_test();
@@ -196,15 +171,43 @@ void setup() {
   server.on("/", HTTP_GET, handleRoot);
   server.on("/update", HTTP_POST, handleUpdate);
   server.on("/getVariables", HTTP_GET, handleGetVariables);
+  server.on("/alter", HTTP_GET, []() {
+    alterDoorState();
+    String state = DOOR_STATE ? "Open" : "Close";
+    server.send(200, "text/plain",
+                "alterDoorState called, new state: " + state + "\n");
+  });
+
+  server.on("/state", HTTP_GET, []() {
+    if (server.hasArg("value")) {
+      String val = server.arg("value");
+      val.trim();
+      val.toLowerCase();
+
+      if (val == "true") {
+        doorState(true);
+        String state = DOOR_STATE ? "Open" : "Close";
+        server.send(200, "text/plain",
+                    "doorState(true) called, new state: " + state + "\n");
+      } else if (val == "false") {
+        doorState(false);
+        String state = DOOR_STATE ? "Open" : "Close";
+        server.send(200, "text/plain",
+                    "doorState(false) called, new state: " + state + "\n");
+      } else {
+        server.send(400, "text/plain",
+                    "Invalid value. Use ?value=true or ?value=false\n");
+      }
+    } else {
+      server.send(400, "text/plain", "Missing 'value' parameter\n");
+    }
+  });
 
   // Start server
   server.begin();
   Serial.println("Server started");
   servo.attach(SERVO_PIN);
-  // if (IS_CONNECTED_TO_INTERNET) {
-  //   timeClient.begin();
-  //   timeClient.setTimeOffset(18000);
-  // }
+  doorState(false); // Initialize door state to closed
 }
 
 void loop() {
@@ -238,7 +241,7 @@ void loop() {
   if (currentTime - lastCheckTime >= recheck_internet_connectivity_in) {
     lastCheckTime = currentTime;
     if (!checkInternetConnectivity())
-      connectToWifiAndBlynk();
+      connectToWifi();
   }
 
   manageBackGroundJobs();
@@ -281,12 +284,17 @@ void inputManager(String command) {
     String ip = ipv4.toString();
     println(ip);
     delay(2000);
+  } else if (isIn(command, "alter gate") || isIn(command, "Alter gate") ||
+             isIn(command, "alter door") || isIn(command, "Alter door")) {
+    alterDoorState();
+  } else if (isIn(command, "my ip") || isIn(command, "My ip")) {
+    Serial.println(WiFi.localIP());
   } else {
     Serial.println("Nothing executed");
   }
 }
 
-void connectToWifiAndBlynk() {
+void connectToWifi() {
   Serial.println("Connecting to Wi-Fi...");
 
   IS_CONNECTED_TO_WIFI = false;
@@ -307,7 +315,6 @@ void connectToWifiAndBlynk() {
 
   if (!IS_CONNECTED_TO_WIFI && validateWIFICreds(ssid, pass, 20)) {
     println("Connecting to ssid: " + String(ssid));
-    Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
     IS_CONNECTED_TO_WIFI = true;
     led.led(builtin_led, true);
   } else if (!OWN_NETWORK_CREATED) {
@@ -315,16 +322,6 @@ void connectToWifiAndBlynk() {
     IS_CONNECTED_TO_WIFI = false;
     OWN_NETWORK_CREATED = true;
     led.led(builtin_led, false);
-  }
-
-  if (IS_CONNECTED_TO_WIFI) {
-    println("Trying to connect to blynk");
-    if (Blynk.connect()) {
-      Serial.println("Connected to Blynk");
-      Serial.println(WiFi.localIP());
-    } else {
-      Serial.println("Failed to connect to Blynk");
-    }
   }
 }
 
@@ -356,42 +353,6 @@ bool checkInternetConnectivity() {
     digitalWrite(builtin_led, LOW);
   }
   return isConnected;
-}
-
-BLYNK_WRITE(V1) {
-  int ledValue = param.asInt();
-  if ((ledValue != 0) && ALLOW_DOOR_OPENING) {
-    doorState(true);
-    println("Door state changed, blynk input value: " + String(ledValue));
-    delay(1000);
-  } else {
-    println("Closing by blink, State: " + String(ledValue));
-  }
-}
-
-BLYNK_WRITE(V2) {
-  int ledValue = param.asInt();
-  digitalWrite(WHITE_LED, ledValue ? HIGH : LOW);
-}
-
-BLYNK_WRITE(V3) {
-  int ledValue = param.asInt();
-  digitalWrite(BLUE_LED, ledValue ? HIGH : LOW);
-}
-
-BLYNK_WRITE(V4) {
-  int ledValue = param.asInt();
-  digitalWrite(YELLOW_LED, ledValue ? HIGH : LOW);
-}
-
-BLYNK_WRITE(V5) {
-  int ledValue = param.asInt();
-  digitalWrite(white_bulb, ledValue ? HIGH : LOW);
-}
-
-BLYNK_WRITE(V6) {
-  int ledValue = param.asInt();
-  digitalWrite(RED_LED, ledValue ? HIGH : LOW);
 }
 
 void println(String str) { Serial.println(str); }
@@ -545,9 +506,9 @@ bool validateWIFICreds(char ssid[], char pass[], int timeOut) {
   if (i < timeOut) {
     println("Connected.");
     bool status = checkInternetConnectivity();
-    println("\n Disconnecting wifi...");
-    WiFi.disconnect(true);
-    delay(2000);
+    // println("\n Disconnecting wifi...");
+    // WiFi.disconnect(true);
+    // delay(2000);
     return status;
   }
 }
@@ -678,7 +639,7 @@ void handleGetVariables() {
 
 void alterDoorState() {
   println("Altering door state...\n New state: " +
-          String(!DOOR_STATE ? "Open" : "Close"));
+          String(DOOR_STATE ? "Close" : "Open"));
   DOOR_STATE = !DOOR_STATE;
   doorState(DOOR_STATE);
   delay(1500);
@@ -695,7 +656,7 @@ void doorState(bool state) {
     door_last_open_on = getSeconds();
   println("Door state: Door state: " + String(state ? "Open" : "Close"));
   digitalWrite(YELLOW_LED, state);
-  state ? servo.write(opening_angle) : servo.write(closing_angle);
+  state ? openDoor() : closeDoor();
 }
 
 void led_test() {
@@ -721,59 +682,49 @@ void led_test() {
 }
 
 void buttonDealer() {
-  bool longPressed = false;
   led.led(YELLOW_LED, true);
-  for (int i = 0;
-       i < servo_shifter_timeout + 3000 && (digitalRead(INPUT_BUTTON) == HIGH);
-       i += 100) {
-    if (digitalRead(INPUT_BUTTON) == HIGH)
-      if (i > servo_shifter_timeout) {
-        longPressed = true;
-        led.led(BLUE_LED, ALLOW_DOOR_OPENING); // condition and check is valid
-      }
-    delay(100);
+  alterDoorState();
+}
+
+void openDoor() {
+  if (ALLOW_DOOR_OPENING) {
+    if (getSeconds() < last_time_update + UPDATE_DOOR_TIME) {
+      println("Door is already open, please wait...");
+      return;
+    }
+    last_time_update = getSeconds();
+    println("Opening door...");
+    moveServoGradually(opening_angle, closing_angle);
+    DOOR_STATE = true;
+  } else {
+    println("Door opening is not allowed.");
   }
-  if (longPressed) {
-    ALLOW_DOOR_OPENING = !ALLOW_DOOR_OPENING;
-    cspi.updateSPIFFS("ALLOW_DOOR_OPENING",
-                      (String(ALLOW_DOOR_OPENING ? "1" : "0")));
-  } else
-    alterDoorState();
 }
 
-// void fetchOnlineTime() {
-//   if (!IS_CONNECTED_TO_INTERNET ||
-//       (getMinutes() - last_time_updated) < update_time_after)
-//     return;
-
-//   int i = 100;
-//   while (!timeClient.update() && i > 0) {
-//     timeClient.forceUpdate();
-//     i -= 10;
-//     delay(100);
-//   }
-
-//   formattedDate = timeClient.getFormattedDate();
-//   updateOnlineTime(formattedDate, myRTC);
-//   Serial.println("Update time: " + getRTC_Time());
-//   // Serial.println("Updated RTC values:");
-//   // Serial.printf("Year: %02d ", myRTC.year);
-//   // Serial.printf("Month: %02d ", myRTC.month);
-//   // Serial.printf("Date: %02d ", myRTC.date);
-//   // Serial.printf("Hour: %02d ", myRTC.hour);
-//   // Serial.printf("Minutes: %02d ", myRTC.minutes);
-//   // Serial.printf("Seconds: %02d\n", myRTC.seconds);
-//   last_time_updated = getMinutes();
-// }
-
-void updateOnlineTime(String formattedDate, RTC &rtc) {
-  sscanf(formattedDate.c_str(), "%d-%d-%dT%d:%d:%dZ", &rtc.year, &rtc.month,
-         &rtc.date, &rtc.hour, &rtc.minutes, &rtc.seconds);
-  rtc.year = rtc.year % 100;
+void closeDoor() {
+  if (ALLOW_DOOR_OPENING) {
+    if (getSeconds() < last_time_update + UPDATE_DOOR_TIME) {
+      println("Door is already open, please wait...");
+      return;
+    }
+    last_time_update = getSeconds();
+    println("Closing door...");
+    moveServoGradually(closing_angle, opening_angle);
+    DOOR_STATE = false;
+  } else {
+    println("Door closing is not allowed.");
+  }
 }
 
-String getRTC_Time() {
-  return (String(myRTC.hour) + ":" + String(myRTC.minutes) + ":" +
-          String(myRTC.seconds) + " ___ " + String(myRTC.month) + "/" +
-          String(myRTC.date) + "/" + String(myRTC.year));
+void moveServoGradually(int targetAngle, int currentAngle) {
+  // Check if we need to move the servo
+  if (targetAngle != currentAngle) {
+    int step =
+        (targetAngle > currentAngle) ? 1 : -1; // Determine the step direction
+    for (int angle = currentAngle; angle != targetAngle; angle += step) {
+      servo.write(angle);
+      delay(15); // Delay to move smoothly (adjust for smoother/faster)
+    }
+    currentAngle = targetAngle; // Update current angle after moving
+  }
 }
