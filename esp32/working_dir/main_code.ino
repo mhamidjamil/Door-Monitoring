@@ -147,6 +147,9 @@ void setup() {
   Serial.begin(115200);
   initBLE();
 
+  servo.attach(SERVO_PIN);
+  servo.write(closing_angle);
+
   pinMode(builtin_led, OUTPUT);
   pinMode(white_bulb, OUTPUT);
 
@@ -206,8 +209,6 @@ void setup() {
   // Start server
   server.begin();
   Serial.println("Server started");
-  servo.attach(SERVO_PIN);
-  doorState(false); // Initialize door state to closed
 }
 
 void loop() {
