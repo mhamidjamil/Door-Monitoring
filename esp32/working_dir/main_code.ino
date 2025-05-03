@@ -25,7 +25,7 @@ char pass[] = MY_PASSWORD;
 #include <ArduinoJson.h>
 #include <WebServer.h>
 
-#include <NTPClient.h>
+// #include <NTPClient.h>
 #include <WiFiUdp.h>
 
 #include <WiFiClient.h>
@@ -71,8 +71,8 @@ int servo_shifter_timeout = 0; // in seconds
 // press button for n seconds to update lock status
 
 // Define NTP Client to get time
-WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP);
+// WiFiUDP ntpUDP;
+// NTPClient timeClient(ntpUDP);
 
 // Variables to save date and time
 String formattedDate;
@@ -201,15 +201,13 @@ void setup() {
   server.begin();
   Serial.println("Server started");
   servo.attach(SERVO_PIN);
-  if (IS_CONNECTED_TO_INTERNET) {
-    timeClient.begin();
-    timeClient.setTimeOffset(18000);
-  }
+  // if (IS_CONNECTED_TO_INTERNET) {
+  //   timeClient.begin();
+  //   timeClient.setTimeOffset(18000);
+  // }
 }
 
 void loop() {
-  if (IS_CONNECTED_TO_WIFI)
-    Blynk.run();
 
   server.handleClient(); // Handle client requests
 
@@ -304,8 +302,6 @@ void connectToWifiAndBlynk() {
     println("Connecting to file ssid: " + String(file_ssid) +
             " password: " + String(file_password));
     IS_CONNECTED_TO_WIFI = validateWIFICreds(file_ssid, file_password);
-    if (IS_CONNECTED_TO_WIFI)
-      Blynk.begin(BLYNK_AUTH_TOKEN, file_ssid, file_password);
     led.led(builtin_led, true);
   }
 
@@ -462,7 +458,7 @@ void manageBackGroundJobs() {
     buttonDealer();
   led.led(BLUE_LED, !ALLOW_DOOR_OPENING);
   led.led(WHITE_LED, OWN_NETWORK_CREATED);
-  fetchOnlineTime();
+  // fetchOnlineTime();
   // disableDoorServo();
   delay(50);
 }
@@ -745,30 +741,30 @@ void buttonDealer() {
     alterDoorState();
 }
 
-void fetchOnlineTime() {
-  if (!IS_CONNECTED_TO_INTERNET ||
-      (getMinutes() - last_time_updated) < update_time_after)
-    return;
+// void fetchOnlineTime() {
+//   if (!IS_CONNECTED_TO_INTERNET ||
+//       (getMinutes() - last_time_updated) < update_time_after)
+//     return;
 
-  int i = 100;
-  while (!timeClient.update() && i > 0) {
-    timeClient.forceUpdate();
-    i -= 10;
-    delay(100);
-  }
+//   int i = 100;
+//   while (!timeClient.update() && i > 0) {
+//     timeClient.forceUpdate();
+//     i -= 10;
+//     delay(100);
+//   }
 
-  formattedDate = timeClient.getFormattedDate();
-  updateOnlineTime(formattedDate, myRTC);
-  Serial.println("Update time: " + getRTC_Time());
-  // Serial.println("Updated RTC values:");
-  // Serial.printf("Year: %02d ", myRTC.year);
-  // Serial.printf("Month: %02d ", myRTC.month);
-  // Serial.printf("Date: %02d ", myRTC.date);
-  // Serial.printf("Hour: %02d ", myRTC.hour);
-  // Serial.printf("Minutes: %02d ", myRTC.minutes);
-  // Serial.printf("Seconds: %02d\n", myRTC.seconds);
-  last_time_updated = getMinutes();
-}
+//   formattedDate = timeClient.getFormattedDate();
+//   updateOnlineTime(formattedDate, myRTC);
+//   Serial.println("Update time: " + getRTC_Time());
+//   // Serial.println("Updated RTC values:");
+//   // Serial.printf("Year: %02d ", myRTC.year);
+//   // Serial.printf("Month: %02d ", myRTC.month);
+//   // Serial.printf("Date: %02d ", myRTC.date);
+//   // Serial.printf("Hour: %02d ", myRTC.hour);
+//   // Serial.printf("Minutes: %02d ", myRTC.minutes);
+//   // Serial.printf("Seconds: %02d\n", myRTC.seconds);
+//   last_time_updated = getMinutes();
+// }
 
 void updateOnlineTime(String formattedDate, RTC &rtc) {
   sscanf(formattedDate.c_str(), "%d-%d-%dT%d:%d:%dZ", &rtc.year, &rtc.month,
